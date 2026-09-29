@@ -1,0 +1,17 @@
+# dependencies and build output
+node_modules/
+build/
+dist/
+*.log
+
+# local TLS certs for the phone relay (generated per machine)
+*.pem
+
+# local editor and planning files
+.vscode/
+.DS_Store
+amazon-build-ship-shape-hackathon.md
+
+# Vega build artifacts
+buildinfo.json
+generated/

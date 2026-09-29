@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rally spike: viewer</title>
+<style>
+  body { margin: 0; background: #0b0b0f; color: #eee; font: 20px -apple-system, sans-serif; }
+  canvas { display: block; margin: 0 auto; background: #15151c; }
+  #stats { text-align: center; padding: 12px; }
+  #reps { font-size: 72px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="reps">0 reps</div>
+<div id="hint" style="text-align:center;color:#fc6;min-height:1.4em"></div>
+<canvas id="c" width="640" height="480"></canvas>
+<div id="stats">waiting for phone...</div>
+<script>
+// Stand-in for the Vega TV app: draws the skeleton and counts squats from knee angle.
+const EDGES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+const ctx = document.getElementById("c").getContext("2d");
+const statsEl = document.getElementById("stats");
+const repsEl = document.getElementById("reps");
+const hintEl = document.getElementById("hint");
+const LEG_VISIBILITY = 0.6;          // MediaPipe visibility score below which a joint is a guess
+const SMOOTHING = 0.35;              // EMA factor for the knee angle
+const DOWN_ANGLE = 110, UP_ANGLE = 155;  // hysteresis band so jitter near one threshold can't double count
+const MIN_REP_MS = 800;              // faster than any real squat
+let count = 0, since = performance.now(), reps = 0, down = false, smoothKnee = null, lastRepAt = 0;
+
+function angle(a, b, c) {
+  const ab = [a[0] - b[0], a[1] - b[1]], cb = [c[0] - b[0], c[1] - b[1]];
+  const cos = (ab[0] * cb[0] + ab[1] * cb[1]) / (Math.hypot(...ab) * Math.hypot(...cb));
+  return (Math.acos(Math.min(1, Math.max(-1, cos))) * 180) / Math.PI;
+}
+
+const ws = new WebSocket(`ws://${location.hostname}:8080/ws?role=viewer`);
+ws.onmessage = (e) => {
+  const { kp, relayTs } = JSON.parse(e.data);
+  ctx.clearRect(0, 0, 640, 480);
+  ctx.strokeStyle = "#4cf";
+  ctx.lineWidth = 4;
+  for (const [i, j] of EDGES) {
+    ctx.beginPath();
+    ctx.moveTo(kp[i][0] * 640, kp[i][1] * 480);
+    ctx.lineTo(kp[j][0] * 640, kp[j][1] * 480);
+    ctx.stroke();
+  }
+  // Only trust the legs when the model actually sees them; off-frame joints are guesses.
+  const legsVisible = [23, 24, 25, 26, 27, 28].every((i) => kp[i][2] >= LEG_VISIBILITY);
+  let knee = NaN;
+  if (!legsVisible) {
+    hintEl.textContent = "Step back: hips, knees and ankles must be in frame";
+    smoothKnee = null;
+  } else {
+    hintEl.textContent = "";
+    // Use the straighter knee so one bent leg (a lunge, a shift of weight) doesn't count as a squat.
+    const raw = Math.max(angle(kp[23], kp[25], kp[27]), angle(kp[24], kp[26], kp[28]));
+    smoothKnee = smoothKnee == null ? raw : smoothKnee + SMOOTHING * (raw - smoothKnee);
+    knee = smoothKnee;
+    const now = performance.now();
+    if (knee < DOWN_ANGLE) down = true;
+    if (down && knee > UP_ANGLE && now - lastRepAt > MIN_REP_MS) {
+      reps++;
+      down = false;
+      lastRepAt = now;
+      repsEl.textContent = `${reps} reps`;
+    }
+  }
+
+  count++;
+  const now = performance.now();
+  if (now - since > 1000) {
+    statsEl.textContent = `received ${(count * 1000 / (now - since)).toFixed(1)} frames/s · relay→viewer ${Date.now() - relayTs} ms · knee ${Number.isNaN(knee) ? "—" : knee.toFixed(0) + "°"}`;
+    count = 0;
+    since = now;
+  }
+};
+</script>
+</body>
+</html>
