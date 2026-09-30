@@ -15,3 +15,6 @@ amazon-build-ship-shape-hackathon.md
 # Vega build artifacts
 buildinfo.json
 generated/
+
+# CDK output
+cdk.out/

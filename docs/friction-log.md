@@ -61,5 +61,6 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Date:** 2026-09-30
 - **Task:** Make a first Bedrock `converse` call to Claude from a new account.
 - **Actual:** `ValidationException: Operation not allowed`. Only `aws bedrock get-use-case-for-model-access` reveals the cause: "You have not filled out the request form."
-- **Severity:** Medium for hackathon onboarding.
-- **Suggestion:** Say in the `converse` error that the model's use-case form hasn't been submitted, and link to it.
+- **Follow-up:** Submitting the form with `aws bedrock put-use-case-for-model-access` then failed with "Your account is not authorized to perform this action. Please create a support case." Every model, including Amazon Nova Lite, returns "Operation not allowed" in both eu-central-1 and us-east-1. The account is from 2016, and Lambda, API Gateway and DynamoDB work normally. A support case is needed.
+- **Severity:** High for the AWS Builder mini challenge: it blocks Bedrock entirely, and nothing in the console explains why.
+- **Suggestion:** Say in the `converse` error that the model's use-case form hasn't been submitted, and link to it. When an account is blocked at the account level, state that and the reason, rather than returning a generic "Operation not allowed".
