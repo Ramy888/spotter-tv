@@ -18,3 +18,5 @@ generated/
 
 # CDK output
 cdk.out/
+infra/site/public/
+infra/fake-tv.log

@@ -5,6 +5,7 @@ import { WebSocketLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integra
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
+import { cpSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 class SpotterRelayStack extends Stack {
@@ -50,7 +51,28 @@ class SpotterRelayStack extends Stack {
     });
     api.grantManageConnections(relay);
 
+    // Phone camera page, served over HTTPS (the camera API requires it) from a Lambda function URL.
+    // CloudFront would be the usual choice, but this account can't create CloudFront resources yet.
+    const siteDir = fileURLToPath(new URL("./site", import.meta.url));
+    mkdirSync(`${siteDir}/public`, { recursive: true });
+    cpSync(fileURLToPath(new URL("../phone-web/index.html", import.meta.url)), `${siteDir}/public/index.html`);
+    const site = new lambda.Function(this, "PhoneSite", {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      handler: "handler.handler",
+      code: lambda.Code.fromAsset(siteDir),
+      memorySize: 128,
+      timeout: Duration.seconds(5),
+      environment: { RELAY_URL: stage.url },
+      logGroup: new logs.LogGroup(this, "PhoneSiteLogs", {
+        retention: logs.RetentionDays.ONE_WEEK,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+    });
+    const siteUrl = site.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
+
     new CfnOutput(this, "RelayUrl", { value: stage.url });
+    new CfnOutput(this, "PhoneUrl", { value: siteUrl.url });
   }
 }
 

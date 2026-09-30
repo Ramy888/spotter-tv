@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0f">
+<title>Spotter camera</title>
+<style>
+  :root { --bg: #0b0b0f; --fg: #f2f2f5; --muted: #9a9aa6; --accent: #44ccff; --warn: #ffcc66; --bad: #ff6b6b; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 16px; min-height: 100%; display: flex; flex-direction: column; gap: 16px; }
+  h1 { margin: 8px 0 0; font-size: 28px; color: var(--accent); }
+  p { margin: 0; color: var(--muted); }
+  form { display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; font: 600 28px/1 ui-monospace, Menlo, monospace; letter-spacing: 6px; text-transform: uppercase;
+          padding: 12px; border-radius: 12px; border: 2px solid #33333d; background: #15151c; color: var(--fg); text-align: center; }
+  button { font: 600 18px/1 inherit; padding: 14px 18px; border-radius: 12px; border: 0; background: var(--accent); color: #002233; }
+  button.secondary { background: #24242d; color: var(--fg); }
+  #stage { position: relative; width: 100%; aspect-ratio: 3 / 4; background: #15151c; border-radius: 16px; overflow: hidden; }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .mirror { transform: scaleX(-1); }
+  #status { font-weight: 600; }
+  .ok { color: var(--accent); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  #stats { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Spotter</h1>
+
+  <section id="join">
+    <p>Enter the code shown on your TV.</p>
+    <form id="codeForm" autocomplete="off">
+      <input id="code" maxlength="6" inputmode="text" autocapitalize="characters" aria-label="Pairing code" required>
+      <button type="submit">Join</button>
+    </form>
+  </section>
+
+  <section id="session" hidden>
+    <div id="stage"><video id="cam" playsinline muted></video><canvas id="overlay"></canvas></div>
+    <div id="status" class="warn">Connecting…</div>
+    <p id="hint">Lean your phone upright about 2.5–3 m away so your whole body is in view.</p>
+    <div class="row">
+      <button id="flip" class="secondary" type="button">Flip camera</button>
+      <button id="leave" class="secondary" type="button">Leave</button>
+    </div>
+    <div id="stats"></div>
+  </section>
+</main>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const SEND_FPS = 15;           // enough for rep counting; keeps relay traffic and cost down
+const PING_EVERY_MS = 1000;    // only some frames carry a timestamp for round-trip measurement
+const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+
+const $ = (id) => document.getElementById(id);
+const config = await fetch("config.json").then((r) => r.json());
+
+let landmarker, ws, code, facing = "user", lastSent = 0, lastPing = 0, rtt = null, frames = 0, fps = 0, since = performance.now();
+let leaving = false;
+
+function setStatus(text, cls) {
+  $("status").textContent = text;
+  $("status").className = cls;
+}
+
+function connect() {
+  ws = new WebSocket(`${config.relayUrl}?role=phone&code=${code}`);
+  ws.onopen = () => setStatus("Connected to your TV", "ok");
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.pong !== undefined) rtt = performance.now() - msg.pong;
+    if (msg.type === "tv-left") setStatus("Your TV closed the session. Start a new one on the TV.", "bad");
+  };
+  ws.onclose = () => {
+    if (leaving) return;
+    // A rejected code closes before opening; an established link that drops (screen lock, Wi-Fi) retries.
+    if (!ws.everOpened) {
+      setStatus("That code didn't work. Check the code on your TV.", "bad");
+      return;
+    }
+    setStatus("Reconnecting…", "warn");
+    setTimeout(connect, 1500);
+  };
+  ws.addEventListener("open", () => { ws.everOpened = true; });
+}
+
+async function openCamera() {
+  $("cam").srcObject?.getTracks().forEach((t) => t.stop());
+  $("cam").srcObject = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing, width: 640, height: 480 },
+    audio: false,
+  });
+  await $("cam").play();
+  $("overlay").width = $("cam").videoWidth;
+  $("overlay").height = $("cam").videoHeight;
+  $("stage").classList.toggle("mirror", facing === "user");
+}
+
+async function start(joinCode) {
+  code = joinCode;
+  $("join").hidden = true;
+  $("session").hidden = false;
+  history.replaceState(null, "", `?code=${code}`);
+  try {
+    setStatus("Loading pose model…", "warn");
+    const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    landmarker = await PoseLandmarker.createFromOptions(files, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+        delegate: "GPU",
+      },
+      runningMode: "VIDEO",
+      numPoses: 1,
+    });
+    await openCamera();
+  } catch (err) {
+    setStatus(`Camera or model failed: ${err.message}`, "bad");
+    return;
+  }
+  connect();
+  requestAnimationFrame(loop);
+}
+
+function loop() {
+  const now = performance.now();
+  const ctx = $("overlay").getContext("2d");
+  const pose = landmarker.detectForVideo($("cam"), now).landmarks[0];
+  ctx.clearRect(0, 0, $("overlay").width, $("overlay").height);
+
+  if (pose) {
+    new DrawingUtils(ctx).drawConnectors(pose, PoseLandmarker.POSE_CONNECTIONS, { color: "#44ccff", lineWidth: 4 });
+    if (ws?.readyState === WebSocket.OPEN && now - lastSent >= 1000 / SEND_FPS) {
+      // Keypoints only: video never leaves the phone.
+      const msg = { kp: pose.map((p) => [+p.x.toFixed(3), +p.y.toFixed(3), +(p.visibility ?? 0).toFixed(2)]) };
+      if (now - lastPing >= PING_EVERY_MS) {
+        msg.sentTs = now;
+        lastPing = now;
+      }
+      ws.send(JSON.stringify(msg));
+      lastSent = now;
+    }
+  }
+
+  frames++;
+  if (now - since >= 1000) {
+    fps = Math.round((frames * 1000) / (now - since));
+    frames = 0;
+    since = now;
+    $("stats").textContent = `code ${code} · tracking ${fps} fps · sending ${SEND_FPS}/s · round trip ${rtt == null ? "–" : Math.round(rtt) + " ms"}`;
+  }
+  if (!leaving) requestAnimationFrame(loop);
+}
+
+$("codeForm").onsubmit = (e) => {
+  e.preventDefault();
+  const value = $("code").value.trim().toUpperCase();
+  if (CODE_RE.test(value)) start(value);
+  else $("code").select();
+};
+$("flip").onclick = async () => {
+  facing = facing === "user" ? "environment" : "user";
+  if (landmarker) await openCamera();
+};
+$("leave").onclick = () => {
+  leaving = true;
+  ws?.close();
+  $("cam").srcObject?.getTracks().forEach((t) => t.stop());
+  location.href = location.pathname;
+};
+
+const fromLink = new URLSearchParams(location.search).get("code")?.toUpperCase();
+if (fromLink && CODE_RE.test(fromLink)) {
+  // Camera access needs a user gesture on iOS, so a scanned QR link still asks for one tap.
+  $("code").value = fromLink;
+}
+</script>
+</body>
+</html>
