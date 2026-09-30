@@ -76,6 +76,7 @@ export const App = () => {
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data as string);
         if (msg.type === 'session') {
+          console.log(`[spotter] session ${msg.code}`);
           setCode(msg.code);
           setPhase('waiting');
         } else if (msg.type === 'phone-left') {

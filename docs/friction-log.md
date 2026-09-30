@@ -64,3 +64,13 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Follow-up:** Submitting the form with `aws bedrock put-use-case-for-model-access` then failed with "Your account is not authorized to perform this action. Please create a support case." Every model, including Amazon Nova Lite, returns "Operation not allowed" in both eu-central-1 and us-east-1. The account is from 2016, and Lambda, API Gateway and DynamoDB work normally. A support case is needed.
 - **Severity:** High for the AWS Builder mini challenge: it blocks Bedrock entirely, and nothing in the console explains why.
 - **Suggestion:** Say in the `converse` error that the model's use-case form hasn't been submitted, and link to it. When an account is blocked at the account level, state that and the reason, rather than returning a generic "Operation not allowed".
+
+## 8. App `console.log` output doesn't show up in `vega device start-log-stream`
+- **Date:** 2026-09-30
+- **Task:** Read an app's own debug output (a session code and rep events) while it runs in the Vega Virtual Device, without a screenshot.
+- **Steps:** Built a debug build, launched it with `vega run-app`, and ran `vega device start-log-stream`.
+- **Expected:** JavaScript `console.log` lines appear in the stream, tagged with the app.
+- **Actual:** System and renderer logs for `com.spotter.tv` appear, but no JavaScript console output. The stream shows `lc_ProcessConfigManager Log suppression ended at level [info]. [1074] logs were suppressed at this level.`
+- **Severity:** Medium. Debugging the app's behavior needed screenshots of the device window instead.
+- **Workaround:** Screenshots of the Virtual Device window, plus tests on the host with Jest.
+- **Suggestion:** Don't suppress JavaScript console output for debug builds, or document the flag or log level that shows it.
