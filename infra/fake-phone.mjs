@@ -21,7 +21,7 @@ ws.on("open", () => {
       kp[25 + s] = [+(0.5 + dx + 0.18 * depth).toFixed(3), 0.65, 1];
       kp[27 + s] = [0.5 + dx, 0.85, 1];
     }
-    ws.send(JSON.stringify({ kp }));
+    ws.send(JSON.stringify({ t: Math.round(performance.now()), kp }));
   }, 1000 / 15);
   setTimeout(() => {
     clearInterval(iv);

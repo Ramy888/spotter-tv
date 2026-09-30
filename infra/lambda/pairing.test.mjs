@@ -28,6 +28,8 @@ test("parseMessage accepts a host request and a well-formed pose frame", () => {
   assert.equal(parsed.type, "frame");
   assert.equal(parsed.kp.length, 33);
   assert.equal(parsed.sentTs, 12.5);
+  assert.equal(parseMessage(frame({ t: 1234 })).t, 1234);
+  assert.equal(parseMessage(frame({ t: "soon" })).t, undefined);
 });
 
 test("parseMessage rejects malformed or oversized input", () => {

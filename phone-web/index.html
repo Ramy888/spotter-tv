@@ -138,7 +138,8 @@ function loop() {
     new DrawingUtils(ctx).drawConnectors(pose, PoseLandmarker.POSE_CONNECTIONS, { color: "#44ccff", lineWidth: 4 });
     if (ws?.readyState === WebSocket.OPEN && now - lastSent >= 1000 / SEND_FPS) {
       // Keypoints only: video never leaves the phone.
-      const msg = { kp: pose.map((p) => [+p.x.toFixed(3), +p.y.toFixed(3), +(p.visibility ?? 0).toFixed(2)]) };
+      // t = capture time, so the TV times reps by when they happened, not when frames arrived.
+      const msg = { t: Math.round(now), kp: pose.map((p) => [+p.x.toFixed(3), +p.y.toFixed(3), +(p.visibility ?? 0).toFixed(2)]) };
       if (now - lastPing >= PING_EVERY_MS) {
         msg.sentTs = now;
         lastPing = now;

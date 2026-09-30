@@ -2,12 +2,16 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Dimensions, StyleSheet, Text, View} from 'react-native';
 import {PHONE_URL, RELAY_URL} from './config';
 import {QrCode} from './QrCode';
-import {Point, RepCounter} from './repCounter';
+import {Point, RepCounter, RepUpdate} from './repCounter';
 
 type Phase = 'connecting' | 'waiting' | 'active';
 
 const RECONNECT_MS = 2000;
 const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gone
+// API Gateway closes WebSocket connections after 10 idle minutes, which would replace the
+// pairing code while someone is fetching their phone. A ping every 5 minutes keeps it open.
+const KEEPALIVE_MS = 5 * 60 * 1000;
+const UI_INTERVAL_MS = 100;
 
 // A TV screen doesn't resize, so read it once instead of subscribing to changes.
 const screenSize = Dimensions.get('window');
@@ -20,14 +24,25 @@ export const App = () => {
   const [knee, setKnee] = useState<number | null>(null);
   const [fps, setFps] = useState(0);
   const counter = useRef(new RepCounter());
-  const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0});
+  const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0, lastCapturedAt: -Infinity});
+  const latest = useRef<RepUpdate>({reps: 0, knee: null});
 
   useEffect(() => {
     let ws: WebSocket;
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let closed = false;
 
-    const onFrame = (kp: Point[]) => {
+    // Counting runs on every frame; the screen redraws at most every UI_INTERVAL_MS, so a slow
+    // render can't back up the message queue.
+    let uiTimer: ReturnType<typeof setTimeout> | undefined;
+    const flushUi = () => {
+      uiTimer = undefined;
+      setReps(latest.current.reps);
+      setKnee(latest.current.knee);
+      setPhase('active');
+    };
+
+    const onFrame = (kp: Point[], capturedAt: number | undefined) => {
       const now = Date.now();
       const s = stats.current;
       s.lastFrameAt = now;
@@ -37,10 +52,21 @@ export const App = () => {
         s.frames = 0;
         s.since = now;
       }
-      const update = counter.current.update(kp, now);
-      setReps(update.reps);
-      setKnee(update.knee);
-      setPhase('active');
+      // Time reps by when the phone captured the frame, not when it arrived: frames delayed and
+      // then delivered in a burst would otherwise look like squats faster than MIN_REP_MS.
+      const t = capturedAt ?? now;
+      if (t < s.lastCapturedAt) {
+        return; // out-of-order frame from the relay; it's already history
+      }
+      s.lastCapturedAt = t;
+      const before = latest.current.reps;
+      latest.current = counter.current.update(kp, t);
+      if (latest.current.reps !== before) {
+        console.log(`[spotter] rep ${latest.current.reps}`);
+      }
+      if (!uiTimer) {
+        uiTimer = setTimeout(flushUi, UI_INTERVAL_MS);
+      }
     };
 
     const connect = () => {
@@ -53,9 +79,13 @@ export const App = () => {
           setCode(msg.code);
           setPhase('waiting');
         } else if (msg.type === 'phone-left') {
+          if (uiTimer) {
+            clearTimeout(uiTimer); // a queued redraw would switch back to the workout screen
+            uiTimer = undefined;
+          }
           setPhase('waiting');
         } else if (Array.isArray(msg.kp)) {
-          onFrame(msg.kp as Point[]);
+          onFrame(msg.kp as Point[], Number.isFinite(msg.t) ? msg.t : undefined);
         }
       };
       ws.onclose = () => {
@@ -76,9 +106,19 @@ export const App = () => {
       }
     }, 1000);
 
+    const keepalive = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({action: 'ping'}));
+      }
+    }, KEEPALIVE_MS);
+
     connect();
     return () => {
       closed = true;
+      clearInterval(keepalive);
+      if (uiTimer) {
+        clearTimeout(uiTimer);
+      }
       if (reconnect) {
         clearTimeout(reconnect);
       }

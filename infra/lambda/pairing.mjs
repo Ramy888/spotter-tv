@@ -39,7 +39,12 @@ export function parseMessage(body) {
     (p) => Array.isArray(p) && p.length === 3 && p.every((n) => typeof n === "number" && Number.isFinite(n)),
   );
   if (!ok) return null;
-  return { type: "frame", kp, sentTs: Number.isFinite(msg.sentTs) ? msg.sentTs : undefined };
+  return {
+    type: "frame",
+    kp,
+    t: Number.isFinite(msg.t) ? msg.t : undefined, // phone capture time (ms, phone clock)
+    sentTs: Number.isFinite(msg.sentTs) ? msg.sentTs : undefined,
+  };
 }
 
 export function expiresAt(nowSeconds) {

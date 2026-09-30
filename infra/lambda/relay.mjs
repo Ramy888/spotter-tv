@@ -148,7 +148,7 @@ async function onMessage(event) {
   const tvConn = await tvConnectionFor(phoneConn);
   if (!tvConn) return ok;
 
-  const delivered = await send(event, tvConn, { kp: frame.kp, relayTs: Date.now() });
+  const delivered = await send(event, tvConn, { kp: frame.kp, t: frame.t, relayTs: Date.now() });
   if (!delivered) {
     routeCache.delete(phoneConn);
     await send(event, phoneConn, { type: "tv-left" });

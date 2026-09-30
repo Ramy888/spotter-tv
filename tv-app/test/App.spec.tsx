@@ -6,7 +6,9 @@ import * as React from 'react';
 import {App} from '../src/App';
 
 class FakeSocket {
+  static OPEN = 1;
   static last: FakeSocket;
+  readyState = 1;
   sent: string[] = [];
   onopen?: () => void;
   onmessage?: (e: {data: string}) => void;
@@ -52,6 +54,7 @@ describe('App', () => {
   });
 
   it('switches to the workout screen and counts reps when frames arrive', () => {
+    jest.useFakeTimers();
     const screen = render(<App />);
     deliver({type: 'session', code: 'KH7VET'});
     const nowSpy = jest.spyOn(Date, 'now');
@@ -66,16 +69,49 @@ describe('App', () => {
     send(0, 10);
     send(0.2, 20);
     send(0, 20);
+    act(() => jest.advanceTimersByTime(200)); // let the throttled screen update run
     expect(screen.getByText('1')).toBeTruthy();
     expect(screen.getByText(/phone connected/)).toBeTruthy();
     nowSpy.mockRestore();
+    jest.useRealTimers();
   });
 
-  it('returns to the pairing screen when the phone leaves', () => {
+  it('returns to the pairing screen when the phone leaves, even right after a frame', () => {
+    jest.useFakeTimers();
     const screen = render(<App />);
     deliver({type: 'session', code: 'KH7VET'});
     deliver(frame(0));
     deliver({type: 'phone-left'});
+    act(() => jest.advanceTimersByTime(200)); // a pending screen update must not undo this
     expect(screen.getByTestId('pairing-code')).toHaveTextContent('KH7VET');
+    jest.useRealTimers();
+  });
+
+  it('pings every 5 minutes so API Gateway does not close the idle connection', () => {
+    jest.useFakeTimers();
+    render(<App />);
+    act(() => FakeSocket.last.onopen?.());
+    act(() => jest.advanceTimersByTime(5 * 60 * 1000));
+    expect(FakeSocket.last.sent).toContain(JSON.stringify({action: 'ping'}));
+    jest.useRealTimers();
+  });
+
+  it('times reps by capture time, so a burst of delayed frames still counts every squat', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    deliver({type: 'session', code: 'KH7VET'});
+    // Two squats captured 3 s apart, but delivered all at once (same arrival time).
+    let t = 0;
+    for (let rep = 0; rep < 2; rep++) {
+      for (const [offset, n] of [[0, 15], [0.2, 15], [0, 15]] as const) {
+        for (let i = 0; i < n; i++) {
+          t += 33;
+          deliver({...frame(offset), t});
+        }
+      }
+    }
+    act(() => jest.advanceTimersByTime(200)); // let the throttled screen update run
+    expect(screen.getByText('2')).toBeTruthy();
+    jest.useRealTimers();
   });
 });
