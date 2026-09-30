@@ -1,92 +1,142 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Dimensions, StyleSheet, Text, View} from 'react-native';
+import {PHONE_URL, RELAY_URL} from './config';
+import {QrCode} from './QrCode';
+import {Point, RepCounter} from './repCounter';
 
-// Spike: prove a Vega app can receive pose keypoints from the Mac relay over WebSocket.
-// 192.168.100.13 is the Mac's LAN IP; it works from both the Virtual Device and a real Fire TV.
-const RELAY_URL = 'ws://192.168.100.13:8080/ws?role=viewer';
+type Phase = 'connecting' | 'waiting' | 'active';
 
-const LEG_JOINTS = [23, 24, 25, 26, 27, 28];
-const LEG_VISIBILITY = 0.6;
-const SMOOTHING = 0.35;
-const DOWN_ANGLE = 110;
-const UP_ANGLE = 155;
-const MIN_REP_MS = 800;
+const RECONNECT_MS = 2000;
+const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gone
 
-type Point = [number, number, number];
-
-function kneeAngle(a: Point, b: Point, c: Point): number {
-  const ab = [a[0] - b[0], a[1] - b[1]];
-  const cb = [c[0] - b[0], c[1] - b[1]];
-  const cos =
-    (ab[0] * cb[0] + ab[1] * cb[1]) /
-    (Math.hypot(ab[0], ab[1]) * Math.hypot(cb[0], cb[1]));
-  return (Math.acos(Math.min(1, Math.max(-1, cos))) * 180) / Math.PI;
-}
+// A TV screen doesn't resize, so read it once instead of subscribing to changes.
+const screenSize = Dimensions.get('window');
+const QR_SIZE = Math.round(Math.min(screenSize.height * 0.55, screenSize.width * 0.3));
 
 export const App = () => {
-  const [status, setStatus] = useState('connecting');
+  const [phase, setPhase] = useState<Phase>('connecting');
+  const [code, setCode] = useState<string | null>(null);
   const [reps, setReps] = useState(0);
   const [knee, setKnee] = useState<number | null>(null);
   const [fps, setFps] = useState(0);
-  const counter = useRef({down: false, smooth: null as number | null, lastRepAt: 0, frames: 0, since: Date.now()});
+  const counter = useRef(new RepCounter());
+  const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0});
 
   useEffect(() => {
-    const ws = new WebSocket(RELAY_URL);
-    ws.onopen = () => setStatus('connected');
-    ws.onerror = () => setStatus('error');
-    ws.onclose = () => setStatus('closed');
-    ws.onmessage = (e) => {
-      const {kp} = JSON.parse(e.data as string) as {kp: Point[]};
-      const c = counter.current;
+    let ws: WebSocket;
+    let reconnect: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+
+    const onFrame = (kp: Point[]) => {
       const now = Date.now();
-
-      c.frames++;
-      if (now - c.since > 1000) {
-        setFps(Math.round((c.frames * 1000) / (now - c.since)));
-        c.frames = 0;
-        c.since = now;
+      const s = stats.current;
+      s.lastFrameAt = now;
+      s.frames++;
+      if (now - s.since >= 1000) {
+        setFps(Math.round((s.frames * 1000) / (now - s.since)));
+        s.frames = 0;
+        s.since = now;
       }
-
-      if (!LEG_JOINTS.every((i) => kp[i][2] >= LEG_VISIBILITY)) {
-        c.smooth = null;
-        setKnee(null);
-        return;
-      }
-      const raw = Math.max(kneeAngle(kp[23], kp[25], kp[27]), kneeAngle(kp[24], kp[26], kp[28]));
-      c.smooth = c.smooth == null ? raw : c.smooth + SMOOTHING * (raw - c.smooth);
-      setKnee(Math.round(c.smooth));
-      if (c.smooth < DOWN_ANGLE) {
-        c.down = true;
-      }
-      if (c.down && c.smooth > UP_ANGLE && now - c.lastRepAt > MIN_REP_MS) {
-        c.down = false;
-        c.lastRepAt = now;
-        setReps((r) => r + 1);
-      }
+      const update = counter.current.update(kp, now);
+      setReps(update.reps);
+      setKnee(update.knee);
+      setPhase('active');
     };
-    return () => ws.close();
+
+    const connect = () => {
+      setPhase('connecting');
+      ws = new WebSocket(`${RELAY_URL}?role=tv`);
+      ws.onopen = () => ws.send(JSON.stringify({action: 'host'}));
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data as string);
+        if (msg.type === 'session') {
+          setCode(msg.code);
+          setPhase('waiting');
+        } else if (msg.type === 'phone-left') {
+          setPhase('waiting');
+        } else if (Array.isArray(msg.kp)) {
+          onFrame(msg.kp as Point[]);
+        }
+      };
+      ws.onclose = () => {
+        // A new connection gets a new session and code; the old code is gone with the old socket.
+        if (!closed) {
+          reconnect = setTimeout(connect, RECONNECT_MS);
+        }
+      };
+    };
+
+    // The relay reports a phone that disconnects, but a phone that just stops sending
+    // (camera paused, browser in the background) keeps its connection open.
+    const watchdog = setInterval(() => {
+      if (stats.current.lastFrameAt && Date.now() - stats.current.lastFrameAt > PHONE_SILENT_MS) {
+        stats.current.lastFrameAt = 0;
+        setFps(0);
+        setPhase((p) => (p === 'active' ? 'waiting' : p));
+      }
+    }, 1000);
+
+    connect();
+    return () => {
+      closed = true;
+      if (reconnect) {
+        clearTimeout(reconnect);
+      }
+      clearInterval(watchdog);
+      ws.close();
+    };
   }, []);
+
+  if (phase === 'active') {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.brand}>Spotter</Text>
+        <Text style={styles.reps}>{reps}</Text>
+        <Text style={styles.label}>squats</Text>
+        <Text style={styles.hint}>
+          {knee == null ? 'Step back: full body in frame' : `knee ${knee}°`}
+        </Text>
+        <Text style={styles.meta}>phone connected · {fps} frames/s</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Spotter</Text>
-      <Text style={styles.reps}>{reps}</Text>
-      <Text style={styles.label}>squats</Text>
-      <Text style={styles.hint}>
-        {knee == null ? 'Step back: full body in frame' : `knee ${knee}°`}
-      </Text>
-      <Text style={styles.meta}>
-        relay {status} · {fps} frames/s
-      </Text>
+      <Text style={styles.brand}>Spotter</Text>
+      {phase === 'waiting' && code ? (
+        <View style={styles.pairing}>
+          <QrCode value={`${PHONE_URL}?code=${code}`} size={QR_SIZE} />
+          <View style={styles.pairingText}>
+            <Text style={styles.step}>Scan with your phone's camera</Text>
+            <Text style={styles.or}>or open the Spotter page and enter</Text>
+            <Text style={styles.code} testID="pairing-code">
+              {code}
+            </Text>
+            <Text style={styles.hintSmall}>
+              Then lean your phone upright about 2.5–3 m away so your whole body is in view.
+            </Text>
+            {reps > 0 && <Text style={styles.meta}>{reps} squats so far</Text>}
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.hint}>Connecting…</Text>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  screen: {flex: 1, backgroundColor: '#0b0b0f', alignItems: 'center', justifyContent: 'center'},
-  title: {color: '#4cf', fontSize: 48, fontWeight: '700'},
+  screen: {flex: 1, backgroundColor: '#0b0b0f', alignItems: 'center', justifyContent: 'center', padding: 48},
+  brand: {color: '#44ccff', fontSize: 40, fontWeight: '700', marginBottom: 24},
   reps: {color: '#fff', fontSize: 220, fontWeight: '800'},
   label: {color: '#aaa', fontSize: 40},
-  hint: {color: '#fc6', fontSize: 36, marginTop: 24},
+  hint: {color: '#ffcc66', fontSize: 36, marginTop: 24},
+  hintSmall: {color: '#aaa', fontSize: 22, marginTop: 24},
   meta: {color: '#666', fontSize: 24, marginTop: 32},
+  pairing: {flexDirection: 'row', alignItems: 'center', maxWidth: '100%'},
+  pairingText: {marginLeft: 48, flexShrink: 1},
+  step: {color: '#fff', fontSize: 32, fontWeight: '700'},
+  or: {color: '#aaa', fontSize: 24, marginTop: 16},
+  code: {color: '#fff', fontSize: 72, fontWeight: '800', letterSpacing: 10, marginTop: 8},
 });

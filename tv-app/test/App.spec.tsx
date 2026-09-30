@@ -7,17 +7,21 @@ import {App} from '../src/App';
 
 class FakeSocket {
   static last: FakeSocket;
+  sent: string[] = [];
   onopen?: () => void;
   onmessage?: (e: {data: string}) => void;
-  onerror?: () => void;
   onclose?: () => void;
-  constructor() {
+  constructor(public url: string) {
     FakeSocket.last = this;
+  }
+  send(data: string) {
+    this.sent.push(data);
   }
   close() {}
 }
 
-// Legs fully visible; only hip (23/24), knee (25/26) and ankle (27/28) positions matter.
+const deliver = (msg: object) => act(() => FakeSocket.last.onmessage?.({data: JSON.stringify(msg)}));
+
 function frame(kneeOffset: number) {
   const kp = Array.from({length: 33}, () => [0.5, 0.5, 1]);
   for (const [s, dx] of [[0, -0.05], [1, 0.05]]) {
@@ -25,7 +29,7 @@ function frame(kneeOffset: number) {
     kp[25 + s] = [0.5 + dx + kneeOffset, 0.65, 1];
     kp[27 + s] = [0.5 + dx, 0.85, 1];
   }
-  return {data: JSON.stringify({kp})};
+  return {kp};
 }
 
 describe('App', () => {
@@ -33,35 +37,45 @@ describe('App', () => {
     (globalThis as any).WebSocket = FakeSocket;
   });
 
-  it('shows the relay status once connected', () => {
-    const screen = render(<App />);
+  it('connects as the TV and asks the relay to host a session', () => {
+    render(<App />);
+    expect(FakeSocket.last.url).toMatch(/\?role=tv$/);
     act(() => FakeSocket.last.onopen?.());
-    expect(screen.getByText(/relay connected/)).toBeTruthy();
+    expect(FakeSocket.last.sent).toEqual([JSON.stringify({action: 'host'})]);
   });
 
-  it('counts a full squat as one rep', () => {
+  it('shows the pairing code and a QR code once the session exists', () => {
     const screen = render(<App />);
+    deliver({type: 'session', code: 'KH7VET'});
+    expect(screen.getByTestId('pairing-code')).toHaveTextContent('KH7VET');
+    expect(screen.getByTestId('qr-code')).toBeTruthy();
+  });
+
+  it('switches to the workout screen and counts reps when frames arrive', () => {
+    const screen = render(<App />);
+    deliver({type: 'session', code: 'KH7VET'});
     const nowSpy = jest.spyOn(Date, 'now');
-    let t = 1_000;
-    const send = (offset: number, times: number) => {
-      for (let i = 0; i < times; i++) {
+    let t = 10_000;
+    const send = (offset: number, n: number) => {
+      for (let i = 0; i < n; i++) {
         t += 33;
         nowSpy.mockReturnValue(t);
-        act(() => FakeSocket.last.onmessage?.(frame(offset)));
+        deliver(frame(offset));
       }
     };
-    send(0, 10); // standing
-    send(0.2, 20); // deep squat
-    send(0, 20); // standing again
+    send(0, 10);
+    send(0.2, 20);
+    send(0, 20);
     expect(screen.getByText('1')).toBeTruthy();
+    expect(screen.getByText(/phone connected/)).toBeTruthy();
     nowSpy.mockRestore();
   });
 
-  it('asks the user to step back when legs are not visible', () => {
+  it('returns to the pairing screen when the phone leaves', () => {
     const screen = render(<App />);
-    const hidden = JSON.parse(frame(0).data);
-    hidden.kp[25][2] = 0.2;
-    act(() => FakeSocket.last.onmessage?.({data: JSON.stringify(hidden)}));
-    expect(screen.getByText(/Step back/)).toBeTruthy();
+    deliver({type: 'session', code: 'KH7VET'});
+    deliver(frame(0));
+    deliver({type: 'phone-left'});
+    expect(screen.getByTestId('pairing-code')).toHaveTextContent('KH7VET');
   });
 });
