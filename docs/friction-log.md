@@ -46,3 +46,20 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Actual:** developer.amazon.com/alexaplus says Alexa+ for Builders is "currently available to select partners", and the MCP Toolkit is available only in the United States.
 - **Severity:** Medium. It shaped our choice of track.
 - **Suggestion:** Give hackathon entrants a sandbox or web-simulator path that doesn't require partner onboarding.
+
+## 6. `aws login` succeeds, but the CLI then reports "Unable to locate credentials"
+- **Date:** 2026-09-30
+- **Task:** Sign the AWS CLI (2.37.6, Homebrew) in to the account that received the hackathon credits.
+- **Steps:** Ran `aws login --region eu-central-1` and completed the browser sign-in. Then ran `aws sts get-caller-identity`.
+- **Expected:** The call succeeds, because the login session is cached in `~/.aws/login/cache`.
+- **Actual:** `NoCredentials: Unable to locate credentials. You can configure credentials by running "aws login"`. No default region had been saved to `~/.aws/config`, and the login credential provider silently fails without one.
+- **Severity:** Medium. The error message points at the step that had just succeeded.
+- **Workaround:** `aws configure set region eu-central-1`
+- **Suggestion:** Have `aws login --region` save the region to the profile, or report "no region configured" instead of "no credentials".
+
+## 7. Bedrock returns "Operation not allowed" until the Anthropic use-case form is submitted
+- **Date:** 2026-09-30
+- **Task:** Make a first Bedrock `converse` call to Claude from a new account.
+- **Actual:** `ValidationException: Operation not allowed`. Only `aws bedrock get-use-case-for-model-access` reveals the cause: "You have not filled out the request form."
+- **Severity:** Medium for hackathon onboarding.
+- **Suggestion:** Say in the `converse` error that the model's use-case form hasn't been submitted, and link to it.
