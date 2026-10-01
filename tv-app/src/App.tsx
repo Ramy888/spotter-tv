@@ -5,12 +5,13 @@ import {PHONE_URL, RELAY_URL} from './config';
 import {ExerciseDef, ExerciseId} from './exercises';
 import {Point} from './exercises/pose';
 import {Cue, Exercise} from './exercises/types';
-import {Profile, ProfileStore, Progress} from './profiles';
+import {Profile, ProfileStore, Progress, isRealName} from './profiles';
 import {RelayMessageReader} from './relayMessages';
 import {Reward, RewardTracker} from './rewards';
 import {PairScreen} from './screens/PairScreen';
 import {History, PickScreen} from './screens/PickScreen';
 import {SummaryScreen, SummaryStats} from './screens/SummaryScreen';
+import {NameScreen} from './screens/NameScreen';
 import {WhoScreen} from './screens/WhoScreen';
 import {WorkoutScreen} from './screens/WorkoutScreen';
 import {Session, recordUpdate, startSession} from './session';
@@ -19,9 +20,9 @@ import {VoiceMode, VoicePlayer} from './voicePlayer';
 import {Stage} from './Stage';
 
 // connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
-type Phase = 'connecting' | 'waiting' | 'picking' | 'who' | 'active' | 'summary';
+type Phase = 'connecting' | 'waiting' | 'picking' | 'who' | 'name' | 'active' | 'summary';
 // What the user chose to look at, once a phone is connected; frames arriving must not override it.
-type Screen = 'pick' | 'who' | 'workout' | 'summary';
+type Screen = 'pick' | 'who' | 'name' | 'workout' | 'summary';
 
 const RECONNECT_MS = 2000;
 const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gone
@@ -83,6 +84,9 @@ export const App = () => {
   const [player, setPlayer] = useState<Profile>({id: 'p1', name: 'Player 1'});
   const [players, setPlayers] = useState<Profile[]>([]);
   const [playersProgress, setPlayersProgress] = useState<Record<string, Progress>>({});
+  // Whose name is being typed, and where to go afterwards: back to "Who's training?" after an
+  // edit, or on to the picker for a player who was just added.
+  const [naming, setNaming] = useState<{id: string; isNew: boolean} | null>(null);
   // Anonymous players and their progress, saved on the TV (no account).
   const profiles = useRef(new ProfileStore(AsyncStorage));
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
@@ -197,9 +201,30 @@ export const App = () => {
   };
 
   const addPlayer = async () => {
-    await profiles.current.add();
+    const added = await profiles.current.add();
     syncProfiles();
-    newWorkout();
+    if (added) {
+      openName(added.id, true);
+    }
+  };
+
+  const openName = (id: string, isNew: boolean) => {
+    setNaming({id, isNew});
+    screen.current = 'name';
+    setPhase('name');
+  };
+
+  const closeName = async (name: string | null) => {
+    if (naming && name) {
+      await profiles.current.rename(naming.id, name);
+      syncProfiles();
+    }
+    setNaming(null);
+    if (naming?.isNew) {
+      newWorkout();
+    } else {
+      await openWho();
+    }
   };
 
   const newWorkout = () => {
@@ -360,9 +385,10 @@ export const App = () => {
     };
   }, []);
 
+  const shownName = isRealName(player.name) ? player.name : null;
   let content: React.ReactNode;
   if (phase === 'active' && exercise) {
-    content = <WorkoutScreen exercise={exercise} w={workout} fps={fps} onFinish={finish} />;
+    content = <WorkoutScreen exercise={exercise} w={workout} fps={fps} onFinish={finish} playerName={shownName} />;
   } else if (phase === 'summary' && exercise && summary && summaryStats) {
     content = (
       <SummaryScreen
@@ -372,6 +398,7 @@ export const App = () => {
         aiCoached={aiCoached}
         onAgain={() => choose(exercise)}
         onNew={newWorkout}
+        playerName={shownName}
       />
     );
   } else if (phase === 'picking') {
@@ -395,6 +422,16 @@ export const App = () => {
         canAdd={profiles.current.canAdd()}
         onPick={pickPlayer}
         onAdd={addPlayer}
+        onRename={(id) => openName(id, false)}
+      />
+    );
+  } else if (phase === 'name' && naming) {
+    content = (
+      <NameScreen
+        current={players.find((p) => p.id === naming.id)?.name ?? ''}
+        cancelLabel={naming.isNew ? 'Skip' : 'Cancel'}
+        onSave={closeName}
+        onCancel={() => closeName(null)}
       />
     );
   } else {

@@ -15,6 +15,7 @@ export const SummaryScreen = ({
   aiCoached,
   onAgain,
   onNew,
+  playerName,
 }: {
   exercise: ExerciseDef;
   stats: SummaryStats;
@@ -22,11 +23,14 @@ export const SummaryScreen = ({
   aiCoached: boolean;
   onAgain: () => void;
   onNew: () => void;
+  playerName: string | null; // shown when the player has a real name
 }) => (
   <View style={styles.root}>
     <View style={styles.left}>
       <View>
-        <Text style={styles.complete}>SESSION COMPLETE</Text>
+        <Text style={styles.complete} testID="complete-label">
+          {playerName ? `NICE WORK, ${playerName.toUpperCase()}` : 'SESSION COMPLETE'}
+        </Text>
         <Text style={styles.count}>{stats.reps}</Text>
         <Text style={styles.unit}>{exercise.unit.toUpperCase()}</Text>
       </View>

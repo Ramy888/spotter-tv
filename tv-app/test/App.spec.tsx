@@ -353,7 +353,74 @@ describe('App', () => {
     expect(screen.getByTestId('who-p1')).toBeTruthy();
     fireEvent.press(screen.getByTestId('who-add'));
     await flushAsync();
+    fireEvent.press(screen.getByTestId('name-cancel')); // "Skip"
+    await flushAsync();
     expect(screen.getByTestId('player')).toHaveTextContent(/Player 2/);
+    jest.useRealTimers();
+  });
+
+  const toPicker = () => {
+    deliver({type: 'session', code: 'KH7VET'});
+    deliver({...frame(0), t: 0});
+    act(() => jest.advanceTimersByTime(200));
+  };
+
+  it('asks a new player for their name, then uses it on the picker and the workout', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('who-add'));
+    await flushAsync();
+    fireEvent.changeText(screen.getByTestId('name-input'), '  Ramy ');
+    fireEvent.press(screen.getByTestId('name-save'));
+    await flushAsync();
+    expect(screen.getByTestId('player')).toHaveTextContent(/Ramy · switch/);
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    expect(screen.getByTestId('set-label')).toHaveTextContent('Ramy · Set 1');
+    fireEvent.press(screen.getByTestId('finish'));
+    await flushAsync();
+    expect(screen.getByTestId('complete-label')).toHaveTextContent('NICE WORK, RAMY');
+    jest.useRealTimers();
+  });
+
+  it('skipping the name keeps "Player N" and no name is shown', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('who-add'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('name-cancel'));
+    await flushAsync();
+    expect(screen.getByTestId('player')).toHaveTextContent(/Player 2 · switch/);
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    expect(screen.getByTestId('set-label')).toHaveTextContent(/^Set 1$/);
+    jest.useRealTimers();
+  });
+
+  it('renames a player from "Who\'s training?" and keeps the name after a restart', async () => {
+    jest.useFakeTimers();
+    const first = render(<App />);
+    await flushAsync();
+    toPicker();
+    fireEvent.press(first.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(first.getByTestId('rename-p1'));
+    fireEvent.changeText(first.getByTestId('name-input'), 'Mo');
+    fireEvent(first.getByTestId('name-input'), 'submitEditing');
+    await flushAsync();
+    expect(first.getByTestId('who-p1')).toHaveTextContent(/MO/);
+    first.unmount();
+
+    const second = render(<App />);
+    await flushAsync();
+    toPicker();
+    expect(second.getByTestId('player')).toHaveTextContent(/Mo · switch/);
     jest.useRealTimers();
   });
 

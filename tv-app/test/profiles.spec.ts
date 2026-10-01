@@ -1,4 +1,4 @@
-import {KeyValueStore, MAX_PROFILES, ProfileStore} from '../src/profiles';
+import {KeyValueStore, MAX_PROFILES, ProfileStore, cleanName, spokenName} from '../src/profiles';
 
 class MemoryStore implements KeyValueStore {
   data = new Map<string, string>();
@@ -77,5 +77,39 @@ describe('ProfileStore', () => {
     const store = await loaded();
     await store.switchTo('p9');
     expect(store.active.id).toBe('p1');
+  });
+
+  it('renames a player and keeps the name after a restart', async () => {
+    const mem = new MemoryStore();
+    const store = await loaded(mem);
+    expect(await store.rename('p1', '  Ramy  ')).toBe(true);
+    expect(store.active.name).toBe('Ramy');
+    expect((await loaded(mem)).active.name).toBe('Ramy');
+  });
+
+  it('refuses an empty name or an unknown player', async () => {
+    const store = await loaded();
+    expect(await store.rename('p1', '   ')).toBe(false);
+    expect(await store.rename('p9', 'Ramy')).toBe(false);
+    expect(store.active.name).toBe('Player 1');
+  });
+});
+
+describe('names', () => {
+  it('tidies what was typed', () => {
+    expect(cleanName('  Mo   Salah ')).toBe('Mo Salah');
+    expect(cleanName('A\u0007b')).toBe('Ab');
+    expect(cleanName('Abcdefghijklmnopqrstuvwxyz')).toBe('Abcdefghijklmnop');
+    expect(cleanName(' \n ')).toBeNull();
+    expect(cleanName('mary-jo o\'neil')).toBe("Mary-Jo O'Neil"); // typed without shift
+    expect(cleanName('McKenzie')).toBe('McKenzie'); // typed with capitals: kept
+  });
+
+  it('speaks real Latin names only', () => {
+    expect(spokenName('Ramy')).toBe('Ramy');
+    expect(spokenName("Mary-Jo O'Neil")).toBe("Mary-Jo O'Neil");
+    expect(spokenName('Player 2')).toBeNull(); // a placeholder, not a name
+    expect(spokenName('رامي')).toBeNull(); // shown on screen, not spoken by the English voice
+    expect(spokenName('R2D2')).toBeNull();
   });
 });

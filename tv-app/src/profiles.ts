@@ -17,6 +17,38 @@ export type Progress = Partial<Record<ExerciseId, ExerciseProgress>>;
 export type Profile = {id: string; name: string};
 
 export const MAX_PROFILES = 4;
+export const MAX_NAME_LENGTH = 16;
+
+// What's left of a typed name after tidying: trimmed, single spaces, no control characters,
+// at most MAX_NAME_LENGTH characters, and "ramy" becomes "Ramy" (a remote keyboard often has no
+// shift; a name typed with capitals is kept as typed). Null if nothing usable is left.
+export function cleanName(raw: string): string | null {
+  const name = raw
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_NAME_LENGTH)
+    .trim();
+  if (!name) {
+    return null;
+  }
+  return name === name.toLowerCase() ? name.replace(/(^|[ '-])(\S)/g, (_, sep, c) => sep + c.toUpperCase()) : name;
+}
+
+const DEFAULT_NAME = /^Player \d+$/;
+// Latin letters only: the coach voice is English and the clips are made per name on the server,
+// which accepts exactly this shape (infra/site/handler.mjs).
+const SPOKEN_NAME = /^[A-Za-z][A-Za-z' -]{0,15}$/;
+
+// False for the "Player N" placeholder a new player starts with.
+export const isRealName = (name: string) => !DEFAULT_NAME.test(name);
+
+// The name the coach says out loud, or null when it should not use one
+// ("Player 2" is a placeholder, not a name; other scripts are shown but not spoken).
+export function spokenName(name: string): string | null {
+  return isRealName(name) && SPOKEN_NAME.test(name) ? name : null;
+}
 const KEY_PROFILES = 'spotter:v1:profiles';
 const keyProgress = (id: string) => `spotter:v1:progress:${id}`;
 
@@ -101,6 +133,17 @@ export class ProfileStore {
     await this.saveProfiles();
     await this.loadProgress();
     return profile;
+  }
+
+  // Renames a player. Returns false (and changes nothing) if the name is empty after tidying.
+  async rename(id: string, raw: string): Promise<boolean> {
+    const name = cleanName(raw);
+    if (!name || !this.doc.profiles.some((p) => p.id === id)) {
+      return false;
+    }
+    this.doc = {...this.doc, profiles: this.doc.profiles.map((p) => (p.id === id ? {...p, name} : p))};
+    await this.saveProfiles();
+    return true;
   }
 
   async switchTo(id: string): Promise<void> {

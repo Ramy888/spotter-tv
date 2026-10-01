@@ -32,11 +32,13 @@ export const WorkoutScreen = ({
   w,
   fps,
   onFinish,
+  playerName,
 }: {
   exercise: ExerciseDef;
   w: WorkoutView;
   fps: number;
   onFinish: () => void;
+  playerName: string | null; // shown when the player has a real name
 }) => {
   const goal = w.target ?? Math.max(5, w.reps);
   const lit = Math.round((Math.min(w.reps, goal) / goal) * TICKS);
@@ -45,7 +47,9 @@ export const WorkoutScreen = ({
     <View style={styles.root}>
       <View style={styles.left}>
         <View>
-          <Text style={styles.small}>Set {w.set}</Text>
+          <Text style={styles.small} testID="set-label">
+            {playerName ? `${playerName} · ` : ''}Set {w.set}
+          </Text>
           <Text style={styles.name}>{exercise.name.toUpperCase()}</Text>
         </View>
         {angleBased ? (
