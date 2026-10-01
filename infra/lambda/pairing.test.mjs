@@ -56,3 +56,10 @@ test("parseMessage accepts a status update with a valid rep count and exercise o
   assert.equal(parseMessage('{"action":"status","reps":2.5,"exercise":"squat"}'), null);
   assert.equal(parseMessage('{"action":"status","reps":3,"exercise":"<b>hi</b>"}'), null);
 });
+
+test("parseMessage accepts a voice-name request only for a speakable name", () => {
+  assert.deepEqual(parseMessage('{"action":"voice-name","name":"Ramy"}'), { type: "voice-name", name: "Ramy" });
+  assert.equal(parseMessage('{"action":"voice-name","name":"Player 1"}'), null);
+  assert.equal(parseMessage('{"action":"voice-name","name":"Say something rude"}'), null);
+  assert.equal(parseMessage('{"action":"voice-name"}'), null);
+});

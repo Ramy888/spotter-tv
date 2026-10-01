@@ -88,4 +88,43 @@ describe('VoiceCoach', () => {
     ];
     expect(all.every(exists)).toBe(true);
   });
+
+  describe('with a named player', () => {
+    const named = (target: number | null = null) => new VoiceCoach(target, Math.random, true);
+
+    it('greets and signs off by name', () => {
+      const v = named();
+      expect(v.start()).toEqual(['name-start']);
+      expect(v.finish()).toEqual(['name-finish']);
+    });
+
+    it('says "last one" by name', () => {
+      const v = named(8);
+      expect(v.update(rep(7), null, 0)).toEqual(['count-7', 'name-last']);
+    });
+
+    it('uses the name on the first "go deeper" only', () => {
+      const v = named();
+      expect(v.update(halfRep(0), null, 0)).toEqual(['name-deeper']);
+      expect(v.update(halfRep(0), null, 6000).map(groupOf)).toEqual(['cue-deeper']);
+    });
+
+    it('uses the name on every other praise, so it never gets old', () => {
+      const v = named();
+      const praise = [];
+      for (let n = 1; n <= 12; n++) {
+        const said = v.update(rep(n), null, n * 3000);
+        if (said.length > 1) {
+          praise.push(said[1]);
+        }
+      }
+      expect(praise.map(groupOf)).toEqual(['name-praise', 'praise', 'name-praise']);
+    });
+
+    it('an unnamed player never gets name clips', () => {
+      const v = new VoiceCoach(8);
+      const all = [...v.start(), ...v.update(halfRep(0), null, 0), ...v.update(rep(7), null, 9000), ...v.finish()];
+      expect(all.filter((c) => c.startsWith('name-'))).toEqual([]);
+    });
+  });
 });

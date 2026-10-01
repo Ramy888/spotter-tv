@@ -4,6 +4,7 @@ import {act, fireEvent, render} from '@testing-library/react-native';
 import * as React from 'react';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {AudioPlayer} from './mocks/w3cmedia'; // what jest.config maps the Vega media player to
 import {App} from '../src/App';
 
 class FakeSocket {
@@ -421,6 +422,63 @@ describe('App', () => {
     await flushAsync();
     toPicker();
     expect(second.getByTestId('player')).toHaveTextContent(/Mo · switch/);
+    jest.useRealTimers();
+  });
+
+  const renameTo = async (screen: ReturnType<typeof render>, name: string) => {
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('rename-p1'));
+    fireEvent.changeText(screen.getByTestId('name-input'), name);
+    fireEvent.press(screen.getByTestId('name-save'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('who-p1'));
+    await flushAsync();
+  };
+  const voiceNameRequests = () =>
+    FakeSocket.last.sent.filter((m) => m.includes('"voice-name"')).map((m) => JSON.parse(m).name);
+  const playedOnTv = () => AudioPlayer.played.map((src) => src.split('/audio/').pop());
+
+  it('asks the relay for name clips and greets the player by name once they are ready', async () => {
+    jest.useFakeTimers();
+    AudioPlayer.played = [];
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    await renameTo(screen, 'Ramy');
+    expect(voiceNameRequests()).toEqual(['Ramy']);
+    deliver({type: 'voice-name', name: 'Ramy', ready: true});
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    await flushAsync();
+    expect(playedOnTv()).toEqual(['name/start/Ramy.mp3']);
+    jest.useRealTimers();
+  });
+
+  it('uses plain clips until the name clips are ready, and never for a placeholder name', async () => {
+    jest.useFakeTimers();
+    AudioPlayer.played = [];
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    expect(voiceNameRequests()).toEqual([]); // "Player 1" is not spoken
+    await renameTo(screen, 'Ramy');
+    fireEvent.press(screen.getByTestId('pick-squat')); // no "ready" from the relay yet
+    await flushAsync();
+    expect(playedOnTv()[0]).toMatch(/^start-\d+\.mp3$/);
+    jest.useRealTimers();
+  });
+
+  it('keeps the name out of the AI coach request', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    await renameTo(screen, 'Ramy');
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    fireEvent.press(screen.getByTestId('finish'));
+    await flushAsync();
+    const request = FakeSocket.last.sent.find((m) => m.includes('"coach"'))!;
+    expect(request).not.toMatch(/Ramy/);
     jest.useRealTimers();
   });
 

@@ -92,3 +92,13 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Actual:** `invalid button value: ["dpad_right"]`. The help text doesn't list valid names. Linux key codes work: `KEY_RIGHT`, `KEY_ENTER`.
 - **Severity:** Low.
 - **Suggestion:** List the accepted key names in `inputd-cli --help`, and expose key presses as a `vega device` command.
+
+## 11. No on-screen keyboard for `TextInput` on the Vega Virtual Device
+- **Date:** 2026-10-01
+- **Task:** Let a player type their name on the TV with the remote (React Native `TextInput`, SDK 0.24, Vega Virtual Device).
+- **Steps:** Focused a `TextInput` with the D-pad and pressed OK.
+- **Expected:** The system on-screen keyboard opens, as on Fire OS.
+- **Actual:** The field shows a cursor but no keyboard appears. Typed text arrives only through `inputd-cli send_text` or key presses. The SDK has a keyboard service (`IKeyboardManager` in `KeplerUIViewInterface`), but nothing says whether the Virtual Device shows it or how a React Native app should open it.
+- **Severity:** Medium. The text input can't be tested from the remote without a device, and there's no way to tell whether real hardware will show the keyboard.
+- **Workaround:** Tested typing with `inputd-cli send_text`.
+- **Suggestion:** Show the system keyboard on the Virtual Device, or document how text entry works there and on devices.

@@ -1,6 +1,11 @@
 // Serves the phone camera page over HTTPS from a Lambda function URL.
 // Only the files listed here are served; everything else is a 404.
 import { existsSync, readFileSync } from "node:fs";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { nameClipKey, parseNameClipPath } from "./voiceNames.mjs"; // copied from lambda/ at synth time
+
+const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const page = readFileSync(new URL("./public/index.html", import.meta.url), "utf8");
 const config = JSON.stringify({ relayUrl: process.env.RELAY_URL });
@@ -26,9 +31,19 @@ function audio(path) {
   return { body: readFileSync(file).toString("base64"), type: "audio/mpeg", cache: "max-age=86400", base64: true };
 }
 
+// "Let's go, Ramy!" clips, made by the relay (lambda/relay.mjs voiceName). Read-only: a clip that
+// hasn't been made is a 404; nothing here calls Polly.
+async function nameAudio(path) {
+  const clip = parseNameClipPath(path);
+  if (!clip) return undefined;
+  const item = (await db.send(new GetCommand({ TableName: process.env.TABLE_NAME, Key: { pk: nameClipKey(clip.template, clip.name) } }))).Item;
+  if (!item?.audio) return undefined;
+  return { body: Buffer.from(item.audio).toString("base64"), type: "audio/mpeg", cache: "max-age=86400", base64: true };
+}
+
 export async function handler(event) {
   const isGet = event.requestContext?.http?.method === "GET";
-  const route = isGet ? routes[event.rawPath] ?? audio(event.rawPath) : undefined;
+  const route = isGet ? routes[event.rawPath] ?? audio(event.rawPath) ?? (await nameAudio(event.rawPath)) : undefined;
   if (!route) return { statusCode: 404, headers: { "content-type": "text/plain" }, body: "not found" };
   return {
     statusCode: 200,

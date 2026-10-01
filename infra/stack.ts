@@ -52,6 +52,8 @@ class SpotterRelayStack extends Stack {
         resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${COACH_SECRET_PARAM}`],
       }),
     );
+    // Name clips ("Let's go, Ramy!"); see lambda/voiceNames.mjs for the limits.
+    relay.addToRolePolicy(new iam.PolicyStatement({ actions: ["polly:SynthesizeSpeech"], resources: ["*"] }));
     relay.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["bedrock:InvokeModel"],
@@ -84,6 +86,7 @@ class SpotterRelayStack extends Stack {
     cpSync(fileURLToPath(new URL("../phone-web/index.html", import.meta.url)), `${siteDir}/public/index.html`);
     cpSync(fileURLToPath(new URL("../voice/clips", import.meta.url)), `${siteDir}/public/audio`, { recursive: true });
     cpSync(fileURLToPath(new URL("../voice/clips.json", import.meta.url)), `${siteDir}/public/audio/clips.json`);
+    cpSync(fileURLToPath(new URL("./lambda/voiceNames.mjs", import.meta.url)), `${siteDir}/voiceNames.mjs`);
     const site = new lambda.Function(this, "PhoneSite", {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
@@ -91,12 +94,13 @@ class SpotterRelayStack extends Stack {
       code: lambda.Code.fromAsset(siteDir),
       memorySize: 128,
       timeout: Duration.seconds(5),
-      environment: { RELAY_URL: stage.url },
+      environment: { RELAY_URL: stage.url, TABLE_NAME: table.tableName },
       logGroup: new logs.LogGroup(this, "PhoneSiteLogs", {
         retention: logs.RetentionDays.ONE_WEEK,
         removalPolicy: RemovalPolicy.DESTROY,
       }),
     });
+    table.grantReadData(site); // serves cached name clips; it never writes or calls Polly
     const siteUrl = site.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
 
     new CfnOutput(this, "RelayUrl", { value: stage.url });

@@ -1,5 +1,6 @@
 // Pure pairing and validation rules for the Spotter relay. No AWS calls here, so this is unit-testable.
 import { randomInt } from "node:crypto";
+import { isSpokenName } from "./voiceNames.mjs";
 
 // No 0/O/1/I/L: codes are read off a TV screen and typed or scanned on a phone.
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -41,6 +42,7 @@ export function parseMessage(body) {
     const ok = Number.isInteger(msg.reps) && msg.reps >= 0 && msg.reps <= 1000 && STATUS_EXERCISES.has(msg.exercise);
     return ok ? { type: "status", reps: msg.reps, exercise: msg.exercise } : null;
   }
+  if (msg?.action === "voice-name") return isSpokenName(msg.name) ? { type: "voice-name", name: msg.name } : null;
   if (msg?.action === "say") {
     const clips = msg.clips;
     const ok = Array.isArray(clips) && clips.length > 0 && clips.length <= 3 && clips.every((c) => CLIP_ID.test(c));

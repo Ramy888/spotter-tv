@@ -5,7 +5,7 @@ import {PHONE_URL, RELAY_URL} from './config';
 import {ExerciseDef, ExerciseId} from './exercises';
 import {Point} from './exercises/pose';
 import {Cue, Exercise} from './exercises/types';
-import {Profile, ProfileStore, Progress, isRealName} from './profiles';
+import {Profile, ProfileStore, Progress, isRealName, spokenName} from './profiles';
 import {RelayMessageReader} from './relayMessages';
 import {Reward, RewardTracker} from './rewards';
 import {PairScreen} from './screens/PairScreen';
@@ -29,6 +29,8 @@ const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gon
 // API Gateway closes WebSocket connections after 10 idle minutes, which would replace the
 // pairing code while someone is fetching their phone. A ping every 5 minutes keeps it open.
 const KEEPALIVE_MS = 5 * 60 * 1000;
+// Ask again for a name's clips only after this long (the relay also rate-limits per TV).
+const VOICE_NAME_RETRY_MS = 15 * 1000;
 const UI_INTERVAL_MS = 100;
 const CUE_SHOW_MS = 2500;
 
@@ -101,6 +103,9 @@ export const App = () => {
   // True while a coach request for the summary on screen is outstanding.
   const awaitingCoach = useRef(false);
   const voiceCoach = useRef<VoiceCoach | null>(null);
+  // The last name whose clips the relay confirmed exist ("Let's go, Ramy!").
+  const voiceNameReady = useRef<string | null>(null);
+  const voiceNameAsked = useRef({name: '', at: 0});
   // Speaks on the TV; if TV audio fails it switches itself to the phone (and the setting follows).
   const voice = useRef(
     new VoicePlayer(
@@ -128,7 +133,8 @@ export const App = () => {
     detector.current = def.create();
     awaitingCoach.current = false;
     const target = profiles.current.activeProgress[def.id]?.target ?? null;
-    voiceCoach.current = new VoiceCoach(target);
+    requestVoiceName(); // normally already ready; if not, it will be for the next set
+    voiceCoach.current = new VoiceCoach(target, Math.random, voice.current.voiceName != null);
     voice.current.say(voiceCoach.current.start());
     session.current = startSession(def.id, Date.now());
     rewards.current = new RewardTracker(target);
@@ -185,6 +191,21 @@ export const App = () => {
     setPlayer(profiles.current.active);
     setPlayers(profiles.current.profiles);
     setHistory(profiles.current.activeProgress);
+    requestVoiceName();
+  };
+
+  // The coach uses the active player's name once the relay has made its clips. Asked for as soon
+  // as the player is known, so the clips are ready by the time a workout starts.
+  const requestVoiceName = () => {
+    const active = profiles.current.profiles.length ? profiles.current.active : null; // null until loaded
+    const name = active ? spokenName(active.name) : null;
+    voice.current.voiceName = name != null && name === voiceNameReady.current ? name : null;
+    const asked = voiceNameAsked.current;
+    const waiting = asked.name === name && Date.now() - asked.at < VOICE_NAME_RETRY_MS;
+    if (name && name !== voiceNameReady.current && !waiting && socket.current?.readyState === WebSocket.OPEN) {
+      voiceNameAsked.current = {name, at: Date.now()};
+      socket.current.send(JSON.stringify({action: 'voice-name', name}));
+    }
   };
 
   const openWho = async () => {
@@ -235,6 +256,7 @@ export const App = () => {
 
   useEffect(() => {
     profiles.current.load().then(syncProfiles).catch(() => {}); // no saved data: start as Player 1
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once; syncProfiles only reads refs
   }, []);
 
   useEffect(() => {
@@ -331,6 +353,7 @@ export const App = () => {
           console.log(`[spotter] session ${msg.code}`);
           setCode(msg.code);
           setPhase('waiting');
+          requestVoiceName();
         } else if (msg.type === 'coach') {
           const ai = msg.summary as CoachSummary | null;
           const valid =
@@ -344,6 +367,11 @@ export const App = () => {
             setAiCoached(true);
           }
           awaitingCoach.current = false;
+        } else if (msg.type === 'voice-name') {
+          if (msg.ready === true && typeof msg.name === 'string') {
+            voiceNameReady.current = msg.name;
+            requestVoiceName(); // uses it only if it's still the active player's name
+          }
         } else if (msg.type === 'phone-left') {
           phoneGone();
         } else if (Array.isArray(msg.kp)) {

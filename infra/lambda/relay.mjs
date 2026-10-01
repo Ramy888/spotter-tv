@@ -9,9 +9,20 @@ import { ApiGatewayManagementApiClient, GoneException, PostToConnectionCommand }
 import { expiresAt, isValidCode, newPairingCode, parseMessage } from "./pairing.mjs";
 import { requestCoach } from "./coachProvider.mjs";
 import { COACH_COOLDOWN_SECONDS, parseCoachRequest } from "./coach.mjs";
+import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
+import {
+  DAILY_SYNTH_LIMIT,
+  NAME_CLIP_TTL_SECONDS,
+  NAME_TEMPLATES,
+  VOICE_NAME_COOLDOWN_SECONDS,
+  nameClipKey,
+  phraseFor,
+  quotaKey,
+} from "./voiceNames.mjs";
 
 const TABLE = process.env.TABLE_NAME;
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const polly = new PollyClient({});
 let mgmt;
 
 // Warm-container cache: phone connection -> TV connection, so each frame skips DynamoDB.
@@ -159,6 +170,66 @@ async function coachSession(event, msg) {
   return ok;
 }
 
+// A TV asks for its player's name clips ("Let's go, Ramy!") when a named player is picked.
+// Clips are made once per name with Polly and cached; the site Lambda only ever reads them.
+// Spend is capped two ways: one request per TV connection per cooldown, and a daily total.
+async function voiceName(event, name) {
+  const connId = event.requestContext.connectionId;
+  try {
+    await db.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { pk: `CONN#${connId}` },
+        UpdateExpression: "SET lastVoiceNameAt = :now",
+        ConditionExpression: "#role = :tv AND (attribute_not_exists(lastVoiceNameAt) OR lastVoiceNameAt < :cutoff)",
+        ExpressionAttributeNames: { "#role": "role" },
+        ExpressionAttributeValues: { ":now": now(), ":tv": "tv", ":cutoff": now() - VOICE_NAME_COOLDOWN_SECONDS },
+      }),
+    );
+  } catch (err) {
+    if (err?.name === "ConditionalCheckFailedException") return ok;
+    throw err;
+  }
+
+  const results = await Promise.all(
+    Object.keys(NAME_TEMPLATES).map((template) => ensureNameClip(template, name).catch((err) => {
+      console.log(JSON.stringify({ voiceName: "failed", template, error: err?.name }));
+      return false;
+    })),
+  );
+  const ready = results.every(Boolean);
+  console.log(JSON.stringify({ voiceName: ready ? "ready" : "not-ready", made: results.filter((r) => r === "made").length }));
+  await send(event, connId, { type: "voice-name", name, ready });
+  return ok;
+}
+
+// Returns "cached" or "made" when the clip exists, false if the daily limit is reached.
+async function ensureNameClip(template, name) {
+  const key = { pk: nameClipKey(template, name) };
+  const cached = await db.send(new GetCommand({ TableName: TABLE, Key: key, ProjectionExpression: "pk" }));
+  if (cached.Item) return "cached";
+  try {
+    await db.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { pk: quotaKey(new Date()) },
+        UpdateExpression: "ADD made :one SET expiresAt = :exp",
+        ConditionExpression: "attribute_not_exists(made) OR made < :limit",
+        ExpressionAttributeValues: { ":one": 1, ":limit": DAILY_SYNTH_LIMIT, ":exp": now() + 2 * 24 * 60 * 60 },
+      }),
+    );
+  } catch (err) {
+    if (err?.name === "ConditionalCheckFailedException") return false;
+    throw err;
+  }
+  const speech = await polly.send(
+    new SynthesizeSpeechCommand({ VoiceId: "Matthew", Engine: "neural", OutputFormat: "mp3", Text: phraseFor(template, name) }),
+  );
+  const audio = await speech.AudioStream.transformToByteArray();
+  await db.send(new PutCommand({ TableName: TABLE, Item: { ...key, audio, expiresAt: now() + NAME_CLIP_TTL_SECONDS } }));
+  return "made";
+}
+
 // Messages from the TV for its paired phone: voice clips to play (when the phone is the speaker)
 // and the live rep count. Only a TV connection can send them, and only to its own phone.
 async function toPhone(event, payload) {
@@ -183,6 +254,7 @@ async function onMessage(event) {
   const msg = parseMessage(event.body);
   if (msg?.type === "host") return hostSession(event);
   if (msg?.type === "coach") return coachSession(event, msg.msg);
+  if (msg?.type === "voice-name") return voiceName(event, msg.name);
   if (msg?.type === "say") return toPhone(event, { type: "say", clips: msg.clips });
   if (msg?.type === "status") return toPhone(event, { type: "status", reps: msg.reps, exercise: msg.exercise });
   if (msg?.type !== "frame") return ok;
