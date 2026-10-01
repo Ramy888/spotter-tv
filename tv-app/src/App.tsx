@@ -46,6 +46,7 @@ export const App = () => {
   const [workout, setWorkout] = useState<Workout>(EMPTY_WORKOUT);
   const [fps, setFps] = useState(0);
   const [summary, setSummary] = useState<CoachSummary | null>(null);
+  const [aiCoached, setAiCoached] = useState(false);
 
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
@@ -54,6 +55,9 @@ export const App = () => {
   // Last coach target per exercise, so beating it next time can be celebrated.
   const targets = useRef<Partial<Record<ExerciseId, number>>>({});
   const screen = useRef<Screen>('pick');
+  const socket = useRef<WebSocket | null>(null);
+  // True while a coach request for the summary on screen is outstanding.
+  const awaitingCoach = useRef(false);
   const latest = useRef<Workout>(EMPTY_WORKOUT);
   const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0, lastCapturedAt: -Infinity});
   const uiTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -67,6 +71,7 @@ export const App = () => {
 
   const choose = (def: ExerciseDef) => {
     detector.current = def.create();
+    awaitingCoach.current = false;
     session.current = startSession(def.id, Date.now());
     rewards.current = new RewardTracker(targets.current[def.id] ?? null);
     screen.current = 'workout';
@@ -86,11 +91,25 @@ export const App = () => {
         targets.current[session.current.exercise] = result.target;
       }
       setSummary(result);
+      setAiCoached(false);
+      // Show the rule-based summary now; the relay may send back an AI rewrite of it.
+      if (socket.current?.readyState === WebSocket.OPEN) {
+        awaitingCoach.current = true;
+        socket.current.send(
+          JSON.stringify({
+            action: 'coach',
+            exercise: session.current.exercise,
+            reps: session.current.reps.length,
+            summary: result,
+          }),
+        );
+      }
     }
     setPhase('summary');
   };
 
   const newWorkout = () => {
+    awaitingCoach.current = false;
     screen.current = 'pick';
     setPhase('picking');
   };
@@ -167,6 +186,7 @@ export const App = () => {
     const connect = () => {
       setPhase('connecting');
       ws = new WebSocket(`${RELAY_URL}?role=tv`);
+      socket.current = ws;
       const reader = new RelayMessageReader();
       ws.onopen = () => ws.send(JSON.stringify({action: 'host'}));
       ws.onmessage = (e) => {
@@ -178,6 +198,19 @@ export const App = () => {
           console.log(`[spotter] session ${msg.code}`);
           setCode(msg.code);
           setPhase('waiting');
+        } else if (msg.type === 'coach') {
+          const ai = msg.summary as CoachSummary | null;
+          const valid =
+            ai != null &&
+            typeof ai.headline === 'string' &&
+            typeof ai.next === 'string' &&
+            Array.isArray(ai.insights) &&
+            ai.insights.every((i) => typeof i === 'string');
+          if (valid && awaitingCoach.current && screen.current === 'summary') {
+            setSummary(ai);
+            setAiCoached(true);
+          }
+          awaitingCoach.current = false;
         } else if (msg.type === 'phone-left') {
           phoneGone();
         } else if (Array.isArray(msg.kp)) {
@@ -257,6 +290,11 @@ export const App = () => {
         <Text style={styles.headline} testID="summary-headline">
           {summary.headline}
         </Text>
+        {aiCoached && (
+          <Text style={styles.aiLabel} testID="ai-label">
+            ✨ AI coach
+          </Text>
+        )}
         <View style={styles.insights}>
           {summary.insights.map((line) => (
             <Text key={line} style={styles.insight}>
@@ -330,6 +368,7 @@ const styles = StyleSheet.create({
   meta: {color: '#666', fontSize: 24, marginTop: 16},
   actions: {marginTop: 20},
   headline: {color: '#fff', fontSize: 56, fontWeight: '800'},
+  aiLabel: {color: '#44ccff', fontSize: 22, marginTop: 8},
   insights: {marginTop: 24, maxWidth: 1200},
   insight: {color: '#aaa', fontSize: 28, marginTop: 12, textAlign: 'center'},
   next: {color: '#ffcc66', fontSize: 32, fontWeight: '700', marginTop: 28},

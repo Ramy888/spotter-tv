@@ -3,10 +3,15 @@ import { Construct } from "constructs";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import { WebSocketLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
 import { cpSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
+// SecureString created outside CDK (generated during setup, never printed); shared with the
+// Cloudflare Worker as its COACH_SECRET.
+const COACH_SECRET_PARAM = "/spotter/coach-worker-secret";
 
 class SpotterRelayStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -27,14 +32,35 @@ class SpotterRelayStack extends Stack {
         exclude: ["*.test.mjs"],
       }),
       memorySize: 512,
-      timeout: Duration.seconds(10),
-      environment: { TABLE_NAME: table.tableName },
+      // Coach requests wait on an AI provider (8 s timeout in coach.mjs); frames finish in milliseconds.
+      timeout: Duration.seconds(20),
+      environment: {
+        TABLE_NAME: table.tableName,
+        COACH_PROVIDER: "workers-ai", // switch to "bedrock" once AWS enables it on this account
+        COACH_WORKER_URL: "https://spotter-coach.ramy-comm.workers.dev",
+        COACH_SECRET_PARAM: COACH_SECRET_PARAM,
+      },
       logGroup: new logs.LogGroup(this, "RelayLogs", {
         retention: logs.RetentionDays.ONE_WEEK,
         removalPolicy: RemovalPolicy.DESTROY,
       }),
     });
     table.grantReadWriteData(relay);
+    relay.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ssm:GetParameter"],
+        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${COACH_SECRET_PARAM}`],
+      }),
+    );
+    relay.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [
+          `arn:aws:bedrock:*::foundation-model/*`,
+          `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
+        ],
+      }),
+    );
 
     const integration = new WebSocketLambdaIntegration("RelayIntegration", relay);
     const api = new apigwv2.WebSocketApi(this, "RelayApi", {

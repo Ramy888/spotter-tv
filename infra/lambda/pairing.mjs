@@ -33,6 +33,7 @@ export function parseMessage(body) {
     return null;
   }
   if (msg?.action === "host") return { type: "host" };
+  if (msg?.action === "coach") return { type: "coach", msg };
   const kp = msg?.kp;
   if (!Array.isArray(kp) || kp.length !== POSE_KEYPOINTS) return null;
   const ok = kp.every(

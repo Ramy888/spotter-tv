@@ -238,4 +238,49 @@ describe('App', () => {
     expect(screen.getByTestId('celebration-badge')).toHaveTextContent(/Let's go/);
     jest.useRealTimers();
   });
+
+  const aiSummary = {
+    headline: 'Five strong squats!',
+    insights: ['You held a steady 2.0 s per rep.'],
+    next: 'Next time, go for 7 squats with the same form.',
+    target: 7,
+  };
+
+  it('asks the relay for AI coaching on Finish, then shows the AI version with a label', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('finish'));
+    const request = JSON.parse(FakeSocket.last.sent.find((m) => m.includes('"coach"'))!);
+    expect(request).toMatchObject({action: 'coach', exercise: 'squat', reps: 0});
+    expect(request.summary.headline).toBe('No full squats counted yet');
+
+    deliver({type: 'coach', summary: aiSummary, provider: 'workers-ai'});
+    expect(screen.getByTestId('summary-headline')).toHaveTextContent('Five strong squats!');
+    expect(screen.getByTestId('ai-label')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('keeps the rule-based summary when the AI reply was rejected (summary: null)', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('finish'));
+    deliver({type: 'coach', summary: null, provider: 'workers-ai'});
+    expect(screen.getByTestId('summary-headline')).toHaveTextContent('No full squats counted yet');
+    expect(screen.queryByTestId('ai-label')).toBeNull();
+    jest.useRealTimers();
+  });
+
+  it('ignores an AI reply that arrives after the user left the summary', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('finish'));
+    fireEvent.press(screen.getByTestId('again'));
+    deliver({type: 'coach', summary: aiSummary, provider: 'workers-ai'});
+    fireEvent.press(screen.getByTestId('finish'));
+    expect(screen.getByTestId('summary-headline')).toHaveTextContent('No full squats counted yet');
+    jest.useRealTimers();
+  });
 });

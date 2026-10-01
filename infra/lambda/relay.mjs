@@ -7,6 +7,8 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ApiGatewayManagementApiClient, GoneException, PostToConnectionCommand } from "@aws-sdk/client-apigatewaymanagementapi";
 import { expiresAt, isValidCode, newPairingCode, parseMessage } from "./pairing.mjs";
+import { requestCoach } from "./coachProvider.mjs";
+import { COACH_COOLDOWN_SECONDS, parseCoachRequest } from "./coach.mjs";
 
 const TABLE = process.env.TABLE_NAME;
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -128,6 +130,35 @@ async function hostSession(event) {
   return ok;
 }
 
+// The TV asks for an AI rewrite of its rule-based summary when a workout ends.
+async function coachSession(event, msg) {
+  const connId = event.requestContext.connectionId;
+  const facts = parseCoachRequest(msg);
+  if (!facts) return ok;
+
+  // Only TVs may ask, at most once per cooldown; the condition makes this hold across Lambda instances.
+  try {
+    await db.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { pk: `CONN#${connId}` },
+        UpdateExpression: "SET lastCoachAt = :now",
+        ConditionExpression: "#role = :tv AND (attribute_not_exists(lastCoachAt) OR lastCoachAt < :cutoff)",
+        ExpressionAttributeNames: { "#role": "role" },
+        ExpressionAttributeValues: { ":now": now(), ":tv": "tv", ":cutoff": now() - COACH_COOLDOWN_SECONDS },
+      }),
+    );
+  } catch (err) {
+    if (err?.name === "ConditionalCheckFailedException") return ok;
+    throw err;
+  }
+
+  const result = await requestCoach(facts);
+  console.log(JSON.stringify({ coach: result.status, provider: result.provider, ms: result.ms }));
+  await send(event, connId, { type: "coach", summary: result.summary ?? null, provider: result.provider });
+  return ok;
+}
+
 async function tvConnectionFor(phoneConnId) {
   if (routeCache.has(phoneConnId)) return routeCache.get(phoneConnId);
   const conn = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `CONN#${phoneConnId}` } }))).Item;
@@ -141,6 +172,7 @@ async function tvConnectionFor(phoneConnId) {
 async function onMessage(event) {
   const msg = parseMessage(event.body);
   if (msg?.type === "host") return hostSession(event);
+  if (msg?.type === "coach") return coachSession(event, msg.msg);
   if (msg?.type !== "frame") return ok;
   const frame = msg;
 

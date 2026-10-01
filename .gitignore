@@ -20,3 +20,5 @@ generated/
 cdk.out/
 infra/site/public/
 infra/fake-tv.log
+coach-worker/node_modules/
+coach-worker/.wrangler/
