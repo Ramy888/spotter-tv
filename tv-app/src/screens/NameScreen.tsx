@@ -68,10 +68,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginTop: 8,
   },
+  // An explicit height and line height: with padding alone, Vega clips the bottom of the text
+  // (the tail of a "y").
   input: {
     width: 640,
+    height: 96,
     marginTop: 36,
-    paddingVertical: 18,
+    paddingVertical: 0,
     paddingHorizontal: 28,
     borderRadius: 18,
     borderWidth: 4,
@@ -80,6 +83,8 @@ const styles = StyleSheet.create({
     color: color.text,
     fontFamily: font.displayBold,
     fontSize: 44,
+    lineHeight: 60,
+    textAlignVertical: 'center',
   },
   inputFocused: {
     borderColor: color.accent,

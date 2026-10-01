@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   cards: {flexDirection: 'row', marginTop: 40},
   column: {marginRight: 24},
   card: {width: 260, height: 300, borderRadius: 24, padding: 28},
-  rename: {marginTop: 14, alignSelf: 'center'},
+  rename: {marginTop: 14}, // as wide as the card above it, so both edges line up
   cardInner: {flex: 1, justifyContent: 'space-between'},
   avatar: {
     width: 72,
