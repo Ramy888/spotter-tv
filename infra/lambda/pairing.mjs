@@ -7,6 +7,8 @@ export const CODE_LENGTH = 6;
 export const SESSION_TTL_SECONDS = 2 * 60 * 60;
 export const POSE_KEYPOINTS = 33;
 export const MAX_FRAME_BYTES = 4096;
+// Voice clip ids, e.g. "count-12", "praise-3" (see voice/make-voice.mjs).
+export const CLIP_ID = /^[a-z][a-z0-9-]{0,31}$/;
 
 export function newPairingCode() {
   let code = "";
@@ -34,6 +36,11 @@ export function parseMessage(body) {
   }
   if (msg?.action === "host") return { type: "host" };
   if (msg?.action === "coach") return { type: "coach", msg };
+  if (msg?.action === "say") {
+    const clips = msg.clips;
+    const ok = Array.isArray(clips) && clips.length > 0 && clips.length <= 3 && clips.every((c) => CLIP_ID.test(c));
+    return ok ? { type: "say", clips } : null;
+  }
   const kp = msg?.kp;
   if (!Array.isArray(kp) || kp.length !== POSE_KEYPOINTS) return null;
   const ok = kp.every(

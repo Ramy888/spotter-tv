@@ -283,4 +283,56 @@ describe('App', () => {
     expect(screen.getByTestId('summary-headline')).toHaveTextContent('No full squats counted yet');
     jest.useRealTimers();
   });
+
+  const saidClips = () =>
+    FakeSocket.last.sent
+      .map((m) => JSON.parse(m))
+      .filter((m) => m.action === 'say')
+      .flatMap((m) => m.clips as string[]);
+
+  it('cycles the voice setting TV -> Phone -> Off from the picker', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    deliver({type: 'session', code: 'KH7VET'});
+    deliver({...frame(0), t: 0});
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('voice-mode')).toHaveTextContent('Voice: TV');
+    fireEvent.press(screen.getByTestId('voice-mode'));
+    expect(screen.getByTestId('voice-mode')).toHaveTextContent('Voice: Phone');
+    fireEvent.press(screen.getByTestId('voice-mode'));
+    expect(screen.getByTestId('voice-mode')).toHaveTextContent('Voice: Off');
+    jest.useRealTimers();
+  });
+
+  it('in Phone mode, sends the start line and each rep count to the phone', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    deliver({type: 'session', code: 'KH7VET'});
+    deliver({...frame(0), t: 0});
+    act(() => jest.advanceTimersByTime(200));
+    fireEvent.press(screen.getByTestId('voice-mode')); // Phone
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    let t = 0;
+    for (const [offset, n] of [[0, 30], [0.2, 40], [0, 30]] as const) {
+      for (let i = 0; i < n; i++) {
+        t += 33;
+        deliver({...frame(offset), t});
+      }
+    }
+    fireEvent.press(screen.getByTestId('finish'));
+    const said = saidClips();
+    expect(said[0]).toMatch(/^start-\d+$/);
+    expect(said).toContain('count-1');
+    expect(said[said.length - 1]).toMatch(/^finish-\d+$/);
+    jest.useRealTimers();
+  });
+
+  it('in TV mode, plays on the TV and sends nothing to the phone', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('finish'));
+    expect(saidClips()).toEqual([]);
+    jest.useRealTimers();
+  });
 });

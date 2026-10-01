@@ -11,6 +11,8 @@ import {QrCode} from './QrCode';
 import {RelayMessageReader} from './relayMessages';
 import {Reward, RewardTracker} from './rewards';
 import {Session, recordUpdate, startSession} from './session';
+import {VoiceCoach} from './voice';
+import {VoiceMode, VoicePlayer} from './voicePlayer';
 
 // connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
 type Phase = 'connecting' | 'waiting' | 'picking' | 'active' | 'summary';
@@ -30,6 +32,9 @@ const screenSize = Dimensions.get('window');
 const QR_SIZE = Math.round(Math.min(screenSize.height * 0.55, screenSize.width * 0.3));
 
 // `celebration.id` changes for each new reward, which remounts the animation.
+const VOICE_LABEL: Record<VoiceMode, string> = {tv: 'TV', phone: 'Phone', off: 'Off'};
+const NEXT_VOICE: Record<VoiceMode, VoiceMode> = {tv: 'phone', phone: 'off', off: 'tv'};
+
 type Workout = {
   reps: number;
   metric: number | null;
@@ -47,6 +52,7 @@ export const App = () => {
   const [fps, setFps] = useState(0);
   const [summary, setSummary] = useState<CoachSummary | null>(null);
   const [aiCoached, setAiCoached] = useState(false);
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>('tv');
 
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
@@ -58,6 +64,19 @@ export const App = () => {
   const socket = useRef<WebSocket | null>(null);
   // True while a coach request for the summary on screen is outstanding.
   const awaitingCoach = useRef(false);
+  const voiceCoach = useRef<VoiceCoach | null>(null);
+  // Speaks on the TV; if TV audio fails it switches itself to the phone (and the setting follows).
+  const voice = useRef(
+    new VoicePlayer(
+      'tv',
+      (clips) => {
+        if (socket.current?.readyState === WebSocket.OPEN) {
+          socket.current.send(JSON.stringify({action: 'say', clips}));
+        }
+      },
+      () => setVoiceMode('phone'),
+    ),
+  );
   const latest = useRef<Workout>(EMPTY_WORKOUT);
   const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0, lastCapturedAt: -Infinity});
   const uiTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -72,6 +91,8 @@ export const App = () => {
   const choose = (def: ExerciseDef) => {
     detector.current = def.create();
     awaitingCoach.current = false;
+    voiceCoach.current = new VoiceCoach(targets.current[def.id] ?? null);
+    voice.current.say(voiceCoach.current.start());
     session.current = startSession(def.id, Date.now());
     rewards.current = new RewardTracker(targets.current[def.id] ?? null);
     screen.current = 'workout';
@@ -81,8 +102,18 @@ export const App = () => {
     setPhase('active');
   };
 
+  const cycleVoice = () => {
+    const next = NEXT_VOICE[voice.current.mode];
+    voice.current.mode = next;
+    setVoiceMode(next);
+  };
+
   const finish = () => {
     cancelUiUpdate();
+    if (voiceCoach.current) {
+      voice.current.say(voiceCoach.current.finish());
+      voiceCoach.current = null;
+    }
     detector.current = null;
     screen.current = 'summary';
     if (session.current) {
@@ -170,6 +201,9 @@ export const App = () => {
         }
         const prev = latest.current;
         const reward = rewards.current?.update(u) ?? null;
+        if (voiceCoach.current) {
+          voice.current.say(voiceCoach.current.update(u, reward, t));
+        }
         latest.current = {
           reps: u.reps,
           metric: u.metric,
@@ -326,6 +360,9 @@ export const App = () => {
               testID={`pick-${def.id}`}
             />
           ))}
+        </View>
+        <View style={styles.actions}>
+          <FocusButton label={`Voice: ${VOICE_LABEL[voiceMode]}`} onPress={cycleVoice} testID="voice-mode" />
         </View>
         <Text style={styles.meta}>{fps} frames/s from your phone</Text>
       </View>

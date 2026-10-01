@@ -40,3 +40,12 @@ test("parseMessage rejects malformed or oversized input", () => {
   assert.equal(parseMessage(frame({ kp: Array.from({ length: 33 }, () => [0, 0]) })), null);
   assert.equal(parseMessage("x".repeat(MAX_FRAME_BYTES + 1)), null);
 });
+
+test("parseMessage accepts a say request with valid clip ids only", () => {
+  assert.deepEqual(parseMessage('{"action":"say","clips":["count-5","praise-3"]}'), { type: "say", clips: ["count-5", "praise-3"] });
+  assert.equal(parseMessage('{"action":"say","clips":[]}'), null);
+  assert.equal(parseMessage('{"action":"say","clips":["a","b","c","d"]}'), null);
+  assert.equal(parseMessage('{"action":"say","clips":["../etc/passwd"]}'), null);
+  assert.equal(parseMessage('{"action":"say","clips":["Count-5"]}'), null);
+  assert.equal(parseMessage('{"action":"say","clips":"count-5"}'), null);
+});

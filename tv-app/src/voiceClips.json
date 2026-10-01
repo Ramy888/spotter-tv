@@ -1,0 +1,16 @@
+{
+  "counts": 50,
+  "groups": {
+    "start": 3,
+    "cue-deeper": 4,
+    "cue-slower": 3,
+    "cue-step-back": 3,
+    "praise": 12,
+    "near-target-2": 1,
+    "near-target-1": 2,
+    "streak": 3,
+    "deepest": 2,
+    "target": 2,
+    "finish": 3
+  }
+}

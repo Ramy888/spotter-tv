@@ -9,6 +9,12 @@ ws.on("unexpected-response", (_req, res) => {
   process.exit(1);
 });
 
+// Clips the TV asked the phone to speak (when TV audio is off or failed).
+ws.on("message", (data) => {
+  const msg = JSON.parse(data);
+  if (msg.type === "say") console.log(`say ${msg.clips.join(" ")}`);
+});
+
 ws.on("open", () => {
   const start = performance.now();
   const iv = setInterval(() => {

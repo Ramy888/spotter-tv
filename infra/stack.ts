@@ -82,6 +82,8 @@ class SpotterRelayStack extends Stack {
     const siteDir = fileURLToPath(new URL("./site", import.meta.url));
     mkdirSync(`${siteDir}/public`, { recursive: true });
     cpSync(fileURLToPath(new URL("../phone-web/index.html", import.meta.url)), `${siteDir}/public/index.html`);
+    cpSync(fileURLToPath(new URL("../voice/clips", import.meta.url)), `${siteDir}/public/audio`, { recursive: true });
+    cpSync(fileURLToPath(new URL("../voice/clips.json", import.meta.url)), `${siteDir}/public/audio/clips.json`);
     const site = new lambda.Function(this, "PhoneSite", {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,

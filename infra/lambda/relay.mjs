@@ -159,6 +159,15 @@ async function coachSession(event, msg) {
   return ok;
 }
 
+// The TV can't play audio (or the user chose the phone as the speaker): play these clips on the phone.
+async function sayOnPhone(event, clips) {
+  const conn = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `CONN#${event.requestContext.connectionId}` } }))).Item;
+  if (conn?.role !== "tv" || !conn.code) return ok;
+  const session = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `SESSION#${conn.code}` } }))).Item;
+  if (session?.phoneConn) await send(event, session.phoneConn, { type: "say", clips });
+  return ok;
+}
+
 async function tvConnectionFor(phoneConnId) {
   if (routeCache.has(phoneConnId)) return routeCache.get(phoneConnId);
   const conn = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `CONN#${phoneConnId}` } }))).Item;
@@ -173,6 +182,7 @@ async function onMessage(event) {
   const msg = parseMessage(event.body);
   if (msg?.type === "host") return hostSession(event);
   if (msg?.type === "coach") return coachSession(event, msg.msg);
+  if (msg?.type === "say") return sayOnPhone(event, msg.clips);
   if (msg?.type !== "frame") return ok;
   const frame = msg;
 
