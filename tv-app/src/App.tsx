@@ -1,14 +1,17 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useEffect, useRef, useState} from 'react';
 import {CoachSummary, coach} from './coach';
 import {PHONE_URL, RELAY_URL} from './config';
 import {ExerciseDef, ExerciseId} from './exercises';
 import {Point} from './exercises/pose';
 import {Cue, Exercise} from './exercises/types';
+import {Profile, ProfileStore, Progress} from './profiles';
 import {RelayMessageReader} from './relayMessages';
 import {Reward, RewardTracker} from './rewards';
 import {PairScreen} from './screens/PairScreen';
 import {History, PickScreen} from './screens/PickScreen';
 import {SummaryScreen, SummaryStats} from './screens/SummaryScreen';
+import {WhoScreen} from './screens/WhoScreen';
 import {WorkoutScreen} from './screens/WorkoutScreen';
 import {Session, recordUpdate, startSession} from './session';
 import {VoiceCoach} from './voice';
@@ -16,9 +19,9 @@ import {VoiceMode, VoicePlayer} from './voicePlayer';
 import {Stage} from './Stage';
 
 // connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
-type Phase = 'connecting' | 'waiting' | 'picking' | 'active' | 'summary';
+type Phase = 'connecting' | 'waiting' | 'picking' | 'who' | 'active' | 'summary';
 // What the user chose to look at, once a phone is connected; frames arriving must not override it.
-type Screen = 'pick' | 'workout' | 'summary';
+type Screen = 'pick' | 'who' | 'workout' | 'summary';
 
 const RECONNECT_MS = 2000;
 const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gone
@@ -77,14 +80,17 @@ export const App = () => {
   const [aiCoached, setAiCoached] = useState(false);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('tv');
   const [history, setHistory] = useState<History>({});
+  const [player, setPlayer] = useState<Profile>({id: 'p1', name: 'Player 1'});
+  const [players, setPlayers] = useState<Profile[]>([]);
+  const [playersProgress, setPlayersProgress] = useState<Record<string, Progress>>({});
+  // Anonymous players and their progress, saved on the TV (no account).
+  const profiles = useRef(new ProfileStore(AsyncStorage));
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
 
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
   const session = useRef<Session | null>(null);
   const rewards = useRef<RewardTracker | null>(null);
-  // Last coach target per exercise, so beating it next time can be celebrated.
-  const targets = useRef<Partial<Record<ExerciseId, number>>>({});
   const sets = useRef<Partial<Record<ExerciseId, number>>>({});
   const screen = useRef<Screen>('pick');
   const socket = useRef<WebSocket | null>(null);
@@ -117,13 +123,14 @@ export const App = () => {
   const choose = (def: ExerciseDef) => {
     detector.current = def.create();
     awaitingCoach.current = false;
-    voiceCoach.current = new VoiceCoach(targets.current[def.id] ?? null);
+    const target = profiles.current.activeProgress[def.id]?.target ?? null;
+    voiceCoach.current = new VoiceCoach(target);
     voice.current.say(voiceCoach.current.start());
     session.current = startSession(def.id, Date.now());
-    rewards.current = new RewardTracker(targets.current[def.id] ?? null);
+    rewards.current = new RewardTracker(target);
     screen.current = 'workout';
     sets.current[def.id] = (sets.current[def.id] ?? 0) + 1;
-    latest.current = {...EMPTY_WORKOUT, target: targets.current[def.id] ?? null, set: sets.current[def.id]!};
+    latest.current = {...EMPTY_WORKOUT, target, set: sets.current[def.id]!};
     setWorkout(latest.current);
     setExercise(def);
     setPhase('active');
@@ -146,11 +153,12 @@ export const App = () => {
     if (session.current) {
       const result = coach(session.current);
       const done = session.current;
-      if (result.target != null) {
-        targets.current[done.exercise] = result.target;
-      }
-      setHistory((h) => ({...h, [done.exercise]: {last: done.reps.length, target: result.target}}));
-      setSummaryStats({...sessionStats(done), reps: done.reps.length, clean: done.reps.length - done.cues.slower});
+      const doneStats = sessionStats(done);
+      profiles.current
+        .recordSession(done.exercise, done.reps.length, result.target, doneStats.bestDepth)
+        .then(() => setHistory(profiles.current.activeProgress))
+        .catch(() => {}); // saving is best effort; the workout itself already happened
+      setSummaryStats({...doneStats, reps: done.reps.length, clean: done.reps.length - done.cues.slower});
       setSummary(result);
       setAiCoached(false);
       // Show the rule-based summary now; the relay may send back an AI rewrite of it.
@@ -169,11 +177,40 @@ export const App = () => {
     setPhase('summary');
   };
 
+  const syncProfiles = () => {
+    setPlayer(profiles.current.active);
+    setPlayers(profiles.current.profiles);
+    setHistory(profiles.current.activeProgress);
+  };
+
+  const openWho = async () => {
+    setPlayersProgress(await profiles.current.allProgress());
+    syncProfiles();
+    screen.current = 'who';
+    setPhase('who');
+  };
+
+  const pickPlayer = async (id: string) => {
+    await profiles.current.switchTo(id);
+    syncProfiles();
+    newWorkout();
+  };
+
+  const addPlayer = async () => {
+    await profiles.current.add();
+    syncProfiles();
+    newWorkout();
+  };
+
   const newWorkout = () => {
     awaitingCoach.current = false;
     screen.current = 'pick';
     setPhase('picking');
   };
+
+  useEffect(() => {
+    profiles.current.load().then(syncProfiles).catch(() => {}); // no saved data: start as Player 1
+  }, []);
 
   useEffect(() => {
     let ws: WebSocket;
@@ -343,8 +380,21 @@ export const App = () => {
         fps={fps}
         history={history}
         voiceLabel={VOICE_LABEL[voiceMode]}
+        playerName={player.name}
         onPick={choose}
         onCycleVoice={cycleVoice}
+        onSwitchPlayer={openWho}
+      />
+    );
+  } else if (phase === 'who') {
+    content = (
+      <WhoScreen
+        profiles={players}
+        activeId={player.id}
+        progressOf={(id) => playersProgress[id]}
+        canAdd={profiles.current.canAdd()}
+        onPick={pickPlayer}
+        onAdd={addPlayer}
       />
     );
   } else {

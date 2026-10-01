@@ -13,7 +13,8 @@
     "^react-native$": "@amazon-devices/react-native-kepler",
     "^react-native/(.*)$": "@amazon-devices/react-native-kepler/$1",
     "^~/(.*)$": "<rootDir>/src/$1",
-    "^@amazon-devices/react-native-w3cmedia$": "<rootDir>/test/mocks/w3cmedia.ts"
+    "^@amazon-devices/react-native-w3cmedia$": "<rootDir>/test/mocks/w3cmedia.ts",
+    "^@react-native-async-storage/async-storage$": "<rootDir>/node_modules/@react-native-async-storage/async-storage/jest/async-storage-mock.js"
   },
   "modulePaths": [
     "<rootDir>/src"

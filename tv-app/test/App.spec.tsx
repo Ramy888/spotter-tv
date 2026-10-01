@@ -3,6 +3,7 @@ import 'react-native';
 import {act, fireEvent, render} from '@testing-library/react-native';
 import * as React from 'react';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {App} from '../src/App';
 
 class FakeSocket {
@@ -43,7 +44,8 @@ function startSquats(screen: ReturnType<typeof render>) {
 }
 
 describe('App', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
     (globalThis as any).WebSocket = FakeSocket;
   });
 
@@ -333,6 +335,52 @@ describe('App', () => {
     startSquats(screen);
     fireEvent.press(screen.getByTestId('finish'));
     expect(saidClips()).toEqual([]);
+    jest.useRealTimers();
+  });
+
+  const flushAsync = () => act(async () => {});
+
+  it('adds a player from the picker and switches to them', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    deliver({type: 'session', code: 'KH7VET'});
+    deliver({...frame(0), t: 0});
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('player')).toHaveTextContent(/Player 1/);
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    expect(screen.getByTestId('who-p1')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('who-add'));
+    await flushAsync();
+    expect(screen.getByTestId('player')).toHaveTextContent(/Player 2/);
+    jest.useRealTimers();
+  });
+
+  it('saves a finished session and shows it on the picker, also after a restart', async () => {
+    jest.useFakeTimers();
+    const first = render(<App />);
+    await flushAsync();
+    startSquats(first);
+    let t = 0;
+    for (const [offset, n] of [[0, 30], [0.2, 40], [0, 30]] as const) {
+      for (let i = 0; i < n; i++) {
+        t += 33;
+        deliver({...frame(offset), t});
+      }
+    }
+    fireEvent.press(first.getByTestId('finish'));
+    await flushAsync();
+    fireEvent.press(first.getByTestId('new-workout'));
+    expect(first.getByTestId('pick-squat')).toHaveTextContent(/Last time 1/);
+    first.unmount();
+
+    const second = render(<App />); // the app restarts; storage keeps the progress
+    await flushAsync();
+    deliver({type: 'session', code: 'ABC234'});
+    deliver({...frame(0), t: 0});
+    act(() => jest.advanceTimersByTime(200));
+    expect(second.getByTestId('pick-squat')).toHaveTextContent(/Last time 1/);
     jest.useRealTimers();
   });
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {EXERCISES, ExerciseDef, ExerciseId} from '../exercises';
 import {FocusButton} from '../FocusButton';
+import {Progress} from '../profiles';
 import {color, font} from '../theme';
 import {StatusPill, Wordmark, screen} from './shared';
 
@@ -11,7 +12,7 @@ const MUSCLES: Record<ExerciseId, string> = {
   'jumping-jack': 'Full body · cardio',
 };
 
-export type History = Partial<Record<ExerciseId, {last: number; target: number | null}>>;
+export type History = Progress;
 
 function historyLine(def: ExerciseDef, h: History[ExerciseId]): string {
   if (!h) {
@@ -24,14 +25,18 @@ export const PickScreen = ({
   fps,
   history,
   voiceLabel,
+  playerName,
   onPick,
   onCycleVoice,
+  onSwitchPlayer,
 }: {
   fps: number;
   history: History;
   voiceLabel: string;
+  playerName: string;
   onPick: (def: ExerciseDef) => void;
   onCycleVoice: () => void;
+  onSwitchPlayer: () => void;
 }) => (
   <View style={screen.root}>
     <View style={screen.header}>
@@ -62,7 +67,11 @@ export const PickScreen = ({
       ))}
     </View>
     <View style={styles.footer}>
-      <FocusButton label={`Coach voice: ${voiceLabel}`} onPress={onCycleVoice} pill testID="voice-mode" />
+      <View style={styles.pills}>
+        <FocusButton label={`${playerName} · switch`} onPress={onSwitchPlayer} pill testID="player" />
+        <View style={styles.pillGap} />
+        <FocusButton label={`Coach voice: ${voiceLabel}`} onPress={onCycleVoice} pill testID="voice-mode" />
+      </View>
       <Text style={styles.hint}>Left / right to choose · OK to start</Text>
     </View>
   </View>
@@ -79,5 +88,7 @@ const styles = StyleSheet.create({
   cardName: {color: color.text, fontFamily: font.display, fontSize: 46},
   cardHistory: {color: color.textSecondary, fontFamily: font.body, fontSize: 18, marginTop: 8},
   footer: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  pills: {flexDirection: 'row'},
+  pillGap: {width: 14},
   hint: {color: color.textSecondary, fontFamily: font.body, fontSize: 18},
 });
