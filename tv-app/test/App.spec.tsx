@@ -221,4 +221,21 @@ describe('App', () => {
     expect(screen.getByText('0')).toBeTruthy();
     jest.useRealTimers();
   });
+
+  it('celebrates the first rep on the workout screen', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    let t = 0;
+    for (const [offset, n] of [[0, 30], [0.2, 40], [0, 30]] as const) {
+      for (let i = 0; i < n; i++) {
+        t += 33;
+        deliver({...frame(offset), t});
+      }
+    }
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('celebration')).toBeTruthy();
+    expect(screen.getByTestId('celebration-badge')).toHaveTextContent(/Let's go/);
+    jest.useRealTimers();
+  });
 });

@@ -1,13 +1,15 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Dimensions, StyleSheet, Text, View} from 'react-native';
+import {CelebrationBadge, CelebrationBurst} from './Celebration';
 import {CoachSummary, coach} from './coach';
 import {PHONE_URL, RELAY_URL} from './config';
-import {EXERCISES, ExerciseDef} from './exercises';
+import {EXERCISES, ExerciseDef, ExerciseId} from './exercises';
 import {Point} from './exercises/pose';
 import {CUE_TEXT, Cue, Exercise} from './exercises/types';
 import {FocusButton} from './FocusButton';
 import {QrCode} from './QrCode';
 import {RelayMessageReader} from './relayMessages';
+import {Reward, RewardTracker} from './rewards';
 import {Session, recordUpdate, startSession} from './session';
 
 // connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
@@ -27,8 +29,15 @@ const CUE_SHOW_MS = 2500;
 const screenSize = Dimensions.get('window');
 const QR_SIZE = Math.round(Math.min(screenSize.height * 0.55, screenSize.width * 0.3));
 
-type Workout = {reps: number; metric: number | null; cue: Cue | null; cueAt: number};
-const EMPTY_WORKOUT: Workout = {reps: 0, metric: null, cue: null, cueAt: 0};
+// `celebration.id` changes for each new reward, which remounts the animation.
+type Workout = {
+  reps: number;
+  metric: number | null;
+  cue: Cue | null;
+  cueAt: number;
+  celebration: {reward: Reward; id: number} | null;
+};
+const EMPTY_WORKOUT: Workout = {reps: 0, metric: null, cue: null, cueAt: 0, celebration: null};
 
 export const App = () => {
   const [phase, setPhase] = useState<Phase>('connecting');
@@ -41,6 +50,9 @@ export const App = () => {
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
   const session = useRef<Session | null>(null);
+  const rewards = useRef<RewardTracker | null>(null);
+  // Last coach target per exercise, so beating it next time can be celebrated.
+  const targets = useRef<Partial<Record<ExerciseId, number>>>({});
   const screen = useRef<Screen>('pick');
   const latest = useRef<Workout>(EMPTY_WORKOUT);
   const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0, lastCapturedAt: -Infinity});
@@ -56,6 +68,7 @@ export const App = () => {
   const choose = (def: ExerciseDef) => {
     detector.current = def.create();
     session.current = startSession(def.id, Date.now());
+    rewards.current = new RewardTracker(targets.current[def.id] ?? null);
     screen.current = 'workout';
     latest.current = EMPTY_WORKOUT;
     setWorkout(EMPTY_WORKOUT);
@@ -68,7 +81,11 @@ export const App = () => {
     detector.current = null;
     screen.current = 'summary';
     if (session.current) {
-      setSummary(coach(session.current));
+      const result = coach(session.current);
+      if (result.target != null) {
+        targets.current[session.current.exercise] = result.target;
+      }
+      setSummary(result);
     }
     setPhase('summary');
   };
@@ -133,11 +150,13 @@ export const App = () => {
           recordUpdate(session.current, u, now);
         }
         const prev = latest.current;
+        const reward = rewards.current?.update(u) ?? null;
         latest.current = {
           reps: u.reps,
           metric: u.metric,
           cue: u.cue ?? (now - prev.cueAt < CUE_SHOW_MS ? prev.cue : null),
           cueAt: u.cue ? now : prev.cueAt,
+          celebration: reward ? {reward, id: (prev.celebration?.id ?? 0) + 1} : prev.celebration,
         };
       }
       if (!uiTimer.current) {
@@ -208,9 +227,15 @@ export const App = () => {
           {workout.reps}
         </Text>
         <Text style={styles.label}>{exercise.unit}</Text>
-        <Text style={styles.cue} testID="cue">
-          {workout.cue ? CUE_TEXT[workout.cue] : ' '}
-        </Text>
+        <View style={styles.cueSlot}>
+          {workout.cue ? (
+            <Text style={styles.cue} testID="cue">
+              {CUE_TEXT[workout.cue]}
+            </Text>
+          ) : workout.celebration ? (
+            <CelebrationBadge key={workout.celebration.id} reward={workout.celebration.reward} />
+          ) : null}
+        </View>
         <Text style={styles.meta}>
           {workout.metric == null ? '' : `${exercise.metricLabel} ${workout.metric}${exercise.id === 'jumping-jack' ? '×' : '°'} · `}
           {fps} frames/s
@@ -218,6 +243,9 @@ export const App = () => {
         <View style={styles.actions}>
           <FocusButton label="Finish" onPress={finish} preferred testID="finish" />
         </View>
+        {workout.celebration && (
+          <CelebrationBurst key={workout.celebration.id} reward={workout.celebration.reward} />
+        )}
       </View>
     );
   }
@@ -295,7 +323,8 @@ const styles = StyleSheet.create({
   brand: {color: '#44ccff', fontSize: 40, fontWeight: '700', marginBottom: 24},
   reps: {color: '#fff', fontSize: 150, fontWeight: '800', lineHeight: 170},
   label: {color: '#aaa', fontSize: 36},
-  cue: {color: '#ffcc66', fontSize: 44, fontWeight: '700', marginTop: 12, minHeight: 56},
+  cueSlot: {marginTop: 12, minHeight: 56, justifyContent: 'center'},
+  cue: {color: '#ffcc66', fontSize: 44, fontWeight: '700'},
   hint: {color: '#ffcc66', fontSize: 36, marginTop: 24},
   hintSmall: {color: '#aaa', fontSize: 22, marginTop: 24},
   meta: {color: '#666', fontSize: 24, marginTop: 16},

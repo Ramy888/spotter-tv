@@ -7,6 +7,7 @@ export type CoachSummary = {
   headline: string;
   insights: string[]; // 0-4 short, specific observations
   next: string; // one concrete suggestion for the next session
+  target: number | null; // rep count for the next session, used to celebrate hitting it
 };
 
 const DEPTH_FADE_DEG = 8; // second half this much shallower (on average) counts as fading
@@ -32,6 +33,7 @@ export function coach(session: Session): CoachSummary {
           ? [`${plural(session.cues.deeper, 'rep')} didn't reach full depth.`]
           : [],
       next: `Try 5 ${unit} at a slow, controlled pace.`,
+      target: 5,
     };
   }
 
@@ -66,10 +68,16 @@ export function coach(session: Session): CoachSummary {
   }
 
   const clean = session.cues.deeper === 0 && session.cues.slower === 0;
+  const target = clean && count >= 5 ? count + 2 : count;
   const next =
-    clean && count >= 5
-      ? `Next time: ${count + 2} ${unit} with the same form.`
+    target > count
+      ? `Next time: ${target} ${unit} with the same form.`
       : `Next time: ${count} ${unit}, every rep to full depth.`;
 
-  return {headline: `${plural(count, def.unit.replace(/s$/, ''), unit)} done`, insights: insights.slice(0, 4), next};
+  return {
+    headline: `${plural(count, def.unit.replace(/s$/, ''), unit)} done`,
+    insights: insights.slice(0, 4),
+    next,
+    target,
+  };
 }
