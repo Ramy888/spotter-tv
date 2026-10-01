@@ -50,6 +50,10 @@ export const NameScreen = ({
         <View style={styles.gap} />
         <FocusButton label={cancelLabel} onPress={onCancel} testID="name-cancel" />
       </View>
+      <View style={styles.phoneHint}>
+        <View style={styles.phoneDot} />
+        <Text style={styles.phoneHintText}>Easier on your phone: it's asking for your name too.</Text>
+      </View>
     </View>
   );
 };
@@ -94,4 +98,7 @@ const styles = StyleSheet.create({
   buttons: {flexDirection: 'row', width: 640, marginTop: 32},
   save: {flex: 1},
   gap: {width: 18},
+  phoneHint: {flexDirection: 'row', alignItems: 'center', marginTop: 40},
+  phoneDot: {width: 10, height: 10, borderRadius: 5, backgroundColor: color.accent, marginRight: 12},
+  phoneHintText: {color: color.textSecondary, fontFamily: font.body, fontSize: 22},
 });

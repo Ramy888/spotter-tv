@@ -11,6 +11,16 @@ export const MAX_FRAME_BYTES = 4096;
 // Voice clip ids, e.g. "count-12", "praise-3" (see voice/make-voice.mjs).
 export const CLIP_ID = /^[a-z][a-z0-9-]{0,31}$/;
 const STATUS_EXERCISES = new Set(["squat", "lunge", "jumping-jack"]);
+export const MAX_NAME_LENGTH = 16;
+
+// A display name typed on the phone: 1-16 characters after trimming, no control characters.
+// Any script is fine for display; the TV decides separately whether the voice can say it.
+function typedName(value) {
+  if (typeof value !== "string") return null;
+  const name = value.replace(/\s+/g, " ").trim();
+  // eslint-disable-next-line no-control-regex
+  return name.length >= 1 && [...name].length <= MAX_NAME_LENGTH && !/[\u0000-\u001f\u007f]/.test(name) ? name : null;
+}
 
 export function newPairingCode() {
   let code = "";
@@ -41,6 +51,11 @@ export function parseMessage(body) {
   if (msg?.action === "status") {
     const ok = Number.isInteger(msg.reps) && msg.reps >= 0 && msg.reps <= 1000 && STATUS_EXERCISES.has(msg.exercise);
     return ok ? { type: "status", reps: msg.reps, exercise: msg.exercise } : null;
+  }
+  if (msg?.action === "name-prompt") return typeof msg.open === "boolean" ? { type: "name-prompt", open: msg.open } : null;
+  if (msg?.action === "name") {
+    const name = typedName(msg.name);
+    return name ? { type: "name", name } : null;
   }
   if (msg?.action === "voice-name") return isSpokenName(msg.name) ? { type: "voice-name", name: msg.name } : null;
   if (msg?.action === "say") {

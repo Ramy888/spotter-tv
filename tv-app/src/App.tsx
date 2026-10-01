@@ -106,6 +106,7 @@ export const App = () => {
   // The last name whose clips the relay confirmed exist ("Let's go, Ramy!").
   const voiceNameReady = useRef<string | null>(null);
   const voiceNameAsked = useRef({name: '', at: 0});
+  const nameFromPhone = useRef<(name: string) => void>(() => {});
   // Speaks on the TV; if TV audio fails it switches itself to the phone (and the setting follows).
   const voice = useRef(
     new VoicePlayer(
@@ -233,9 +234,18 @@ export const App = () => {
     setNaming({id, isNew});
     screen.current = 'name';
     setPhase('name');
+    sendNamePrompt(true);
+  };
+
+  // Typing on a TV remote is slow, so the paired phone shows a name field too.
+  const sendNamePrompt = (open: boolean) => {
+    if (socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(JSON.stringify({action: 'name-prompt', open}));
+    }
   };
 
   const closeName = async (name: string | null) => {
+    sendNamePrompt(false);
     if (naming && name) {
       await profiles.current.rename(naming.id, name);
       syncProfiles();
@@ -294,6 +304,9 @@ export const App = () => {
     const onFrame = (kp: Point[], capturedAt: number | undefined) => {
       const now = Date.now();
       const s = stats.current;
+      if (!s.lastFrameAt && screen.current === 'name') {
+        sendNamePrompt(true); // a phone that (re)joins while the TV is asking for a name
+      }
       s.lastFrameAt = now;
       s.frames++;
       if (now - s.since >= 1000) {
@@ -367,6 +380,10 @@ export const App = () => {
             setAiCoached(true);
           }
           awaitingCoach.current = false;
+        } else if (msg.type === 'name') {
+          if (typeof msg.name === 'string') {
+            nameFromPhone.current(msg.name);
+          }
         } else if (msg.type === 'voice-name') {
           if (msg.ready === true && typeof msg.name === 'string') {
             voiceNameReady.current = msg.name;
@@ -412,6 +429,13 @@ export const App = () => {
       ws.close();
     };
   }, []);
+
+  // The socket effect is long-lived; this ref always points at the current render's closeName.
+  nameFromPhone.current = (name: string) => {
+    if (screen.current === 'name' && naming) {
+      closeName(name);
+    }
+  };
 
   const shownName = isRealName(player.name) ? player.name : null;
   let content: React.ReactNode;

@@ -240,6 +240,13 @@ async function toPhone(event, payload) {
   return ok;
 }
 
+// The phone's answer to the TV's name prompt. Only a phone can send it, and only to its own TV.
+async function nameToTv(event, name) {
+  const tvConn = await tvConnectionFor(event.requestContext.connectionId);
+  if (tvConn) await send(event, tvConn, { type: "name", name });
+  return ok;
+}
+
 async function tvConnectionFor(phoneConnId) {
   if (routeCache.has(phoneConnId)) return routeCache.get(phoneConnId);
   const conn = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `CONN#${phoneConnId}` } }))).Item;
@@ -255,6 +262,8 @@ async function onMessage(event) {
   if (msg?.type === "host") return hostSession(event);
   if (msg?.type === "coach") return coachSession(event, msg.msg);
   if (msg?.type === "voice-name") return voiceName(event, msg.name);
+  if (msg?.type === "name-prompt") return toPhone(event, { type: "name-prompt", open: msg.open });
+  if (msg?.type === "name") return nameToTv(event, msg.name);
   if (msg?.type === "say") return toPhone(event, { type: "say", clips: msg.clips });
   if (msg?.type === "status") return toPhone(event, { type: "status", reps: msg.reps, exercise: msg.exercise });
   if (msg?.type !== "frame") return ok;

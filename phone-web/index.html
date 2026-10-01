@@ -52,6 +52,13 @@
   #exercise { font-size: 22px; margin-left: 10px; }
   #stats { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  /* Name sheet: shown while the TV asks for a player's name (typing on a remote is slow). */
+  #nameSheet { position: fixed; inset: 0; background: rgba(10, 11, 16, 0.72); display: flex; align-items: flex-end; z-index: 10; }
+  #nameSheet form { width: 100%; max-width: 480px; margin: 0 auto; padding: 24px 24px max(28px, env(safe-area-inset-bottom));
+                    background: var(--surface); border-top: 2px solid var(--accent); border-radius: 24px 24px 0 0; gap: 14px; }
+  #nameSheet h2 { margin: 0; font-size: 34px; line-height: 1; }
+  #nameInput { letter-spacing: 0; text-transform: none; text-align: left; font-size: 28px; }
+  #nameInput:focus { outline: none; border-color: var(--accent); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -103,6 +110,15 @@
     </div>
   </div>
 </section>
+
+<div id="nameSheet" hidden>
+  <form id="nameForm" autocomplete="off">
+    <h2 class="display">What's your name?</h2>
+    <p class="copy" style="font-size: 16px">Your TV is asking. The coach will cheer you on by name. It's saved on your TV only.</p>
+    <input id="nameInput" maxlength="16" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Your name" aria-label="Your name">
+    <button class="primary" type="submit">Send to TV</button>
+  </form>
+</div>
 
 <script type="module">
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
@@ -191,6 +207,21 @@ async function keepAwake() {
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && $("session").hidden === false) keepAwake(); });
 
+function showNameSheet(open) {
+  $("nameSheet").hidden = !open;
+  if (open) $("nameInput").focus();
+  else $("nameInput").blur();
+}
+
+$("nameForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = $("nameInput").value.replace(/\s+/g, " ").trim();
+  if (!name || ws?.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ action: "name", name }));
+  $("nameInput").value = "";
+  showNameSheet(false); // the TV saves it and closes its own prompt
+});
+
 function connect() {
   ws = new WebSocket(`${config.relayUrl}?role=phone&code=${code}`);
   ws.onopen = () => { connected = true; setStatus("Connected · step into view", "warn"); };
@@ -202,6 +233,7 @@ function connect() {
       $("reps").textContent = msg.reps;
       $("exercise").textContent = String(msg.exercise ?? "").replace("-", " ") + (msg.reps === 1 ? "" : "s");
     }
+    if (msg.type === "name-prompt") showNameSheet(msg.open === true);
     if (msg.type === "tv-left") { connected = false; setStatus("Your TV closed the session", "bad"); }
   };
   ws.onclose = () => {

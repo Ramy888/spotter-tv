@@ -482,6 +482,52 @@ describe('App', () => {
     jest.useRealTimers();
   });
 
+  const namePrompts = () =>
+    FakeSocket.last.sent.filter((m) => m.includes('"name-prompt"')).map((m) => JSON.parse(m).open);
+
+  it('asks the phone for the name too, and saves a name typed there', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('who-add'));
+    await flushAsync();
+    expect(namePrompts()).toEqual([true]);
+    deliver({type: 'name', name: 'mo salah'});
+    await flushAsync();
+    expect(namePrompts()).toEqual([true, false]);
+    expect(screen.getByTestId('player')).toHaveTextContent(/Mo Salah · switch/);
+    jest.useRealTimers();
+  });
+
+  it('ignores a name from the phone when the TV is not asking for one', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    deliver({type: 'name', name: 'Intruder'});
+    await flushAsync();
+    expect(screen.getByTestId('player')).toHaveTextContent(/Player 1 · switch/);
+    jest.useRealTimers();
+  });
+
+  it('closes the phone prompt when the name is typed on the TV or skipped', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('who-add'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('name-cancel'));
+    await flushAsync();
+    expect(namePrompts()).toEqual([true, false]);
+    jest.useRealTimers();
+  });
+
   it('saves a finished session and shows it on the picker, also after a restart', async () => {
     jest.useFakeTimers();
     const first = render(<App />);

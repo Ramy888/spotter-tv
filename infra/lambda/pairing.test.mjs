@@ -63,3 +63,18 @@ test("parseMessage accepts a voice-name request only for a speakable name", () =
   assert.equal(parseMessage('{"action":"voice-name","name":"Say something rude"}'), null);
   assert.equal(parseMessage('{"action":"voice-name"}'), null);
 });
+
+test("parseMessage accepts the TV's name prompt (open or closed) and nothing else", () => {
+  assert.deepEqual(parseMessage('{"action":"name-prompt","open":true}'), { type: "name-prompt", open: true });
+  assert.deepEqual(parseMessage('{"action":"name-prompt","open":false}'), { type: "name-prompt", open: false });
+  assert.equal(parseMessage('{"action":"name-prompt","open":"yes"}'), null);
+});
+
+test("parseMessage accepts a name typed on the phone, tidied, in any script", () => {
+  assert.deepEqual(parseMessage('{"action":"name","name":"  Mo   Salah "}'), { type: "name", name: "Mo Salah" });
+  assert.deepEqual(parseMessage(JSON.stringify({ action: "name", name: "رامي" })), { type: "name", name: "رامي" });
+  assert.equal(parseMessage('{"action":"name","name":"   "}'), null);
+  assert.equal(parseMessage('{"action":"name","name":"Abcdefghijklmnopq"}'), null); // 17 characters
+  assert.equal(parseMessage('{"action":"name","name":"a\\u0007b"}'), null);
+  assert.equal(parseMessage('{"action":"name","name":42}'), null);
+});
