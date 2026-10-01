@@ -1,6 +1,6 @@
 // Rep detector for exercises that bend to a target angle and straighten again (squats, lunges).
 import {LEGS, Point, visible} from './pose';
-import {Cue, Exercise, ExerciseUpdate} from './types';
+import {Cue, Exercise, ExerciseUpdate, RepRecord} from './types';
 
 export type AngleRepConfig = {
   // Angle to track for this frame; legs are already known to be visible.
@@ -22,6 +22,7 @@ export class AngleRepDetector implements Exercise {
   private smooth: number | null = null;
   private lastRepAt = -Infinity;
   private dipStartedAt = 0;
+  private deepest = Infinity;
   private hidden = false;
 
   constructor(private readonly config: AngleRepConfig) {}
@@ -32,7 +33,7 @@ export class AngleRepDetector implements Exercise {
       this.phase = 'up';
       const cue: Cue | null = this.hidden ? null : 'step-back';
       this.hidden = true;
-      return {reps: this.reps, cue, metric: null};
+      return {reps: this.reps, rep: null, cue, metric: null};
     }
     this.hidden = false;
 
@@ -41,10 +42,15 @@ export class AngleRepDetector implements Exercise {
     this.smooth = this.smooth == null ? raw : this.smooth + SMOOTHING * (raw - this.smooth);
     const a = this.smooth;
     let cue: Cue | null = null;
+    let rep: RepRecord | null = null;
 
     if (this.phase === 'up' && a < c.dipAngle) {
       this.phase = 'dipping';
       this.dipStartedAt = t;
+      this.deepest = a;
+    }
+    if (this.phase !== 'up') {
+      this.deepest = Math.min(this.deepest, a);
     }
     if (this.phase === 'dipping' && a < c.downAngle) {
       this.phase = 'down';
@@ -55,12 +61,13 @@ export class AngleRepDetector implements Exercise {
       } else if (this.phase === 'down' && t - this.lastRepAt > c.minRepMs) {
         this.reps++;
         this.lastRepAt = t;
+        rep = {durationMs: t - this.dipStartedAt, depth: Math.round(this.deepest)};
         if (t - this.dipStartedAt < c.slowRepMs) {
           cue = 'slower';
         }
       }
       this.phase = 'up';
     }
-    return {reps: this.reps, cue, metric: Math.round(a)};
+    return {reps: this.reps, rep, cue, metric: Math.round(a)};
   }
 }

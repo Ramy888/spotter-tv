@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Dimensions, StyleSheet, Text, View} from 'react-native';
+import {CoachSummary, coach} from './coach';
 import {PHONE_URL, RELAY_URL} from './config';
 import {EXERCISES, ExerciseDef} from './exercises';
 import {Point} from './exercises/pose';
@@ -7,9 +8,12 @@ import {CUE_TEXT, Cue, Exercise} from './exercises/types';
 import {FocusButton} from './FocusButton';
 import {QrCode} from './QrCode';
 import {RelayMessageReader} from './relayMessages';
+import {Session, recordUpdate, startSession} from './session';
 
-// connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout)
-type Phase = 'connecting' | 'waiting' | 'picking' | 'active';
+// connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
+type Phase = 'connecting' | 'waiting' | 'picking' | 'active' | 'summary';
+// What the user chose to look at, once a phone is connected; frames arriving must not override it.
+type Screen = 'pick' | 'workout' | 'summary';
 
 const RECONNECT_MS = 2000;
 const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gone
@@ -32,9 +36,12 @@ export const App = () => {
   const [exercise, setExercise] = useState<ExerciseDef | null>(null);
   const [workout, setWorkout] = useState<Workout>(EMPTY_WORKOUT);
   const [fps, setFps] = useState(0);
+  const [summary, setSummary] = useState<CoachSummary | null>(null);
 
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
+  const session = useRef<Session | null>(null);
+  const screen = useRef<Screen>('pick');
   const latest = useRef<Workout>(EMPTY_WORKOUT);
   const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0, lastCapturedAt: -Infinity});
   const uiTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -48,15 +55,26 @@ export const App = () => {
 
   const choose = (def: ExerciseDef) => {
     detector.current = def.create();
+    session.current = startSession(def.id, Date.now());
+    screen.current = 'workout';
     latest.current = EMPTY_WORKOUT;
     setWorkout(EMPTY_WORKOUT);
     setExercise(def);
     setPhase('active');
   };
 
-  const backToPicker = () => {
+  const finish = () => {
     cancelUiUpdate();
     detector.current = null;
+    screen.current = 'summary';
+    if (session.current) {
+      setSummary(coach(session.current));
+    }
+    setPhase('summary');
+  };
+
+  const newWorkout = () => {
+    screen.current = 'pick';
     setPhase('picking');
   };
 
@@ -69,10 +87,10 @@ export const App = () => {
     // render can't back up the message queue.
     const flushUi = () => {
       uiTimer.current = undefined;
-      if (detector.current) {
+      if (screen.current === 'workout') {
         setWorkout(latest.current);
         setPhase('active');
-      } else {
+      } else if (screen.current === 'pick') {
         setPhase('picking');
       }
     };
@@ -84,6 +102,11 @@ export const App = () => {
       // A phone that comes back (page reload, new phone) starts a new clock.
       stats.current.lastCapturedAt = -Infinity;
       setFps(0);
+      // Keep a summary on screen if the user is reading it; otherwise go back to pairing.
+      if (screen.current === 'summary') {
+        return;
+      }
+      screen.current = 'pick';
       setPhase((p) => (p === 'connecting' ? p : 'waiting'));
     };
 
@@ -106,6 +129,9 @@ export const App = () => {
       s.lastCapturedAt = t;
       if (detector.current) {
         const u = detector.current.update(kp, t);
+        if (session.current) {
+          recordUpdate(session.current, u, now);
+        }
         const prev = latest.current;
         latest.current = {
           reps: u.reps,
@@ -178,7 +204,9 @@ export const App = () => {
     return (
       <View style={styles.screen}>
         <Text style={styles.brand}>{exercise.name}</Text>
-        <Text style={styles.reps}>{workout.reps}</Text>
+        <Text style={styles.reps} accessibilityLabel={`${workout.reps} ${exercise.unit}`}>
+          {workout.reps}
+        </Text>
         <Text style={styles.label}>{exercise.unit}</Text>
         <Text style={styles.cue} testID="cue">
           {workout.cue ? CUE_TEXT[workout.cue] : ' '}
@@ -188,7 +216,30 @@ export const App = () => {
           {fps} frames/s
         </Text>
         <View style={styles.actions}>
-          <FocusButton label="Change workout" onPress={backToPicker} preferred testID="back" />
+          <FocusButton label="Finish" onPress={finish} preferred testID="finish" />
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === 'summary' && exercise && summary) {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.brand}>{exercise.name}</Text>
+        <Text style={styles.headline} testID="summary-headline">
+          {summary.headline}
+        </Text>
+        <View style={styles.insights}>
+          {summary.insights.map((line) => (
+            <Text key={line} style={styles.insight}>
+              {line}
+            </Text>
+          ))}
+        </View>
+        <Text style={styles.next}>{summary.next}</Text>
+        <View style={styles.picker}>
+          <FocusButton label="Same again" onPress={() => choose(exercise)} preferred testID="again" />
+          <FocusButton label="New workout" onPress={newWorkout} testID="new-workout" />
         </View>
       </View>
     );
@@ -249,6 +300,10 @@ const styles = StyleSheet.create({
   hintSmall: {color: '#aaa', fontSize: 22, marginTop: 24},
   meta: {color: '#666', fontSize: 24, marginTop: 16},
   actions: {marginTop: 20},
+  headline: {color: '#fff', fontSize: 56, fontWeight: '800'},
+  insights: {marginTop: 24, maxWidth: 1200},
+  insight: {color: '#aaa', fontSize: 28, marginTop: 12, textAlign: 'center'},
+  next: {color: '#ffcc66', fontSize: 32, fontWeight: '700', marginTop: 28},
   picker: {flexDirection: 'row', marginTop: 40},
   pairing: {flexDirection: 'row', alignItems: 'center', maxWidth: '100%'},
   pairingText: {marginLeft: 48, flexShrink: 1},

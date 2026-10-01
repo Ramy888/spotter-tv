@@ -65,11 +65,14 @@ System fonts: Amazon Ember on Fire TV, `-apple-system` / Segoe UI on the phone. 
 |---|---|---|
 | `display-rep` | 150 / 800, line height 170 | the rep count "7" |
 | `display-code` | 72 / 800, letter-spacing 10 | the pairing code "B3XCAK" |
+| `headline` | 56 / 800 | summary "7 squats done" |
 | `cue` | 44 / 700 | "Go deeper" |
 | `title` | 40 / 700, `accent` | "Spotter", "Squats" |
 | `unit` | 36 / 400 | "squats" under the count |
 | `status` | 36 / 400, `cue` | "Connecting…" |
-| `button` | 34 / 700 | "Squats", "Change workout" |
+| `coach-next` | 32 / 700, `cue` | "Next time: 9 squats with the same form." |
+| `button` | 34 / 700 | "Squats", "Finish" |
+| `insight` | 28 / 400, `text-secondary`, centered | "Steady pace: 2.0 s per rep." |
 | `heading` | 32 / 700 | "Scan with your phone's camera" |
 | `body` | 24 / 400 | "or open the Spotter page and enter", meta line |
 | `caption` | 22 / 400 | placement hint, button detail |
@@ -125,7 +128,7 @@ The remote has no pointer, so focus is the whole interaction model.
 | Focused | 4 px `accent` | `surface-focus` | `text` | 1.04 |
 
 - Implemented once in `tv-app/src/FocusButton.tsx`. Every focusable thing uses it.
-- On arrival at each screen, the most likely next action gets `hasTVPreferredFocus`: the first workout on the picker, "Change workout" during a workout.
+- On arrival at each screen, the most likely next action gets `hasTVPreferredFocus`: the first workout on the picker, **Finish** during a workout, **Same again** on the summary.
 - The border color changes, not just the scale. Scale alone is too subtle from 3 m.
 - The border is always 4 px in both states, so focus never shifts the layout.
 
@@ -137,7 +140,8 @@ The remote has no pointer, so focus is the whole interaction model.
 |---|---|---|
 | `FocusButton` | `tv-app/src/FocusButton.tsx` | The only TV button. Label plus an optional detail line. |
 | `QrCode` | `tv-app/src/QrCode.tsx` | Drawn with `View`s (no SVG dependency), black on white, 4-module quiet zone. Encodes `PHONE_URL?code=XXXXXX`. |
-| Rep display | `tv-app/src/App.tsx` (active phase) | Title (exercise name), then count, unit, cue line (always reserved, a blank space when idle), meta line, and the "Change workout" button. |
+| Rep display | `tv-app/src/App.tsx` (active phase) | Title (exercise name), then count, unit, cue line (always reserved, a blank space when idle), meta line, and the **Finish** button. |
+| Summary | `tv-app/src/App.tsx` (summary phase) | Title, headline, up to 4 insights, the "next time" line in `cue`, then **Same again** (focused) and **New workout**. Stays on screen while the phone keeps sending. Text comes from `tv-app/src/coach.ts`. |
 | Pairing panel | `tv-app/src/App.tsx` (waiting phase) | QR, then "Scan with your phone's camera", "or open the Spotter page and enter", the code, and the placement hint. |
 | Camera stage | `phone-web/index.html` `#stage` | Video plus skeleton canvas, mirrored for the front camera. |
 | Status line | `phone-web/index.html` `#status` | One line, colored by state: `ok` → `accent`, `warn` → `cue`, `bad` → `bad`. |
@@ -180,6 +184,6 @@ No decorative animation. Motion on screen is the user's own body, mirrored as th
 - [x] Text contrast is at least 4.5 : 1 everywhere except `text-meta` (3.4 : 1 at 24 px, which counts as large text).
 - [x] Focus is shown by color and border, not color alone.
 - [x] Pairing works without the QR code: the code is printed large, in an unambiguous alphabet.
-- [ ] Screen reader labels (`accessibilityLabel`) on `FocusButton` and the rep count. Not done yet.
+- [x] Screen reader labels: `FocusButton` (role and label) and the rep count ("7 squats").
 - [ ] Spoken cues for users who can't watch the screen mid-exercise. Planned, see the roadmap.
 - [ ] Check the 5 % edge margin on a real Fire TV.

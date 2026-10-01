@@ -93,6 +93,25 @@ describe('squats', () => {
   });
 });
 
+describe('per-rep records', () => {
+  it('reports duration and the deepest knee angle once per counted squat', () => {
+    const ex = create('squat');
+    const records = squat(0.2).flatMap((kp, i) => {
+      const u = ex.update(kp, i * 33);
+      return u.rep ? [u.rep] : [];
+    });
+    expect(records).toHaveLength(1);
+    expect(records[0].depth).toBeGreaterThan(40);
+    expect(records[0].depth).toBeLessThan(110);
+    expect(records[0].durationMs).toBeGreaterThan(1000);
+  });
+
+  it('reports no record for a half squat', () => {
+    const ex = create('squat');
+    expect(squat(0.08).some((kp, i) => ex.update(kp, i * 33).rep)).toBe(false);
+  });
+});
+
 describe('lunges', () => {
   it('counts a lunge on either leg', () => {
     const frames = [...lunge(0.2), ...rep((d) => legs(0, d), 0.2)];

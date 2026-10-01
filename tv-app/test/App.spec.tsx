@@ -102,11 +102,12 @@ describe('App', () => {
     jest.useRealTimers();
   });
 
-  it('goes back to the picker from a workout', () => {
+  it('goes back to the picker from the summary', () => {
     jest.useFakeTimers();
     const screen = render(<App />);
     startSquats(screen);
-    fireEvent.press(screen.getByTestId('back'));
+    fireEvent.press(screen.getByTestId('finish'));
+    fireEvent.press(screen.getByTestId('new-workout'));
     deliver(frame(0));
     act(() => jest.advanceTimersByTime(200));
     expect(screen.getByTestId('pick-lunge')).toBeTruthy();
@@ -186,6 +187,38 @@ describe('App', () => {
     act(() => FakeSocket.last.onmessage?.({data: whole.slice(cut)}));
     act(() => jest.advanceTimersByTime(200));
     expect(screen.getByTestId('pick-squat')).toBeTruthy(); // the joined frame got through
+    jest.useRealTimers();
+  });
+
+  it('shows a coach summary after Finish, built from the reps just done', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    let t = 0;
+    for (let rep = 0; rep < 5; rep++) {
+      for (const [offset, n] of [[0, 30], [0.2, 40], [0, 30]] as const) {
+        for (let i = 0; i < n; i++) {
+          t += 33;
+          deliver({...frame(offset), t});
+        }
+      }
+    }
+    act(() => jest.advanceTimersByTime(200));
+    fireEvent.press(screen.getByTestId('finish'));
+    expect(screen.getByTestId('summary-headline')).toHaveTextContent('5 squats done');
+    expect(screen.getByText(/Steady pace/)).toBeTruthy();
+    expect(screen.getByText('Next time: 7 squats with the same form.')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('starts the same workout again from the summary', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('finish'));
+    fireEvent.press(screen.getByTestId('again'));
+    expect(screen.getByText('squats')).toBeTruthy();
+    expect(screen.getByText('0')).toBeTruthy();
     jest.useRealTimers();
   });
 });

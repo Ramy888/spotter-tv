@@ -1,7 +1,7 @@
 // Jumping jacks: a rep is "open" (hands above shoulders, feet wide) followed by "closed"
 // (hands below shoulders, feet together).
 import {J, Point, visible} from './pose';
-import {Cue, Exercise, ExerciseUpdate} from './types';
+import {Cue, Exercise, ExerciseUpdate, RepRecord} from './types';
 
 const NEEDED = [
   J.leftShoulder, J.rightShoulder, J.leftWrist, J.rightWrist,
@@ -15,6 +15,7 @@ export class JumpingJackDetector implements Exercise {
   private reps = 0;
   private open = false;
   private lastRepAt = -Infinity;
+  private openedAt = 0;
   private hidden = false;
 
   update(kp: Point[], t: number): ExerciseUpdate {
@@ -22,7 +23,7 @@ export class JumpingJackDetector implements Exercise {
       const cue: Cue | null = this.hidden ? null : 'step-back';
       this.hidden = true;
       this.open = false;
-      return {reps: this.reps, cue, metric: null};
+      return {reps: this.reps, rep: null, cue, metric: null};
     }
     this.hidden = false;
 
@@ -32,15 +33,18 @@ export class JumpingJackDetector implements Exercise {
     const handsUp = kp[J.leftWrist][1] < shoulderY && kp[J.rightWrist][1] < shoulderY;
     const handsDown = kp[J.leftWrist][1] > shoulderY && kp[J.rightWrist][1] > shoulderY;
 
+    let rep: RepRecord | null = null;
     if (!this.open && handsUp && spread > OPEN_SPREAD) {
       this.open = true;
+      this.openedAt = t;
     } else if (this.open && handsDown && spread < CLOSED_SPREAD) {
       this.open = false;
       if (t - this.lastRepAt > MIN_REP_MS) {
         this.reps++;
         this.lastRepAt = t;
+        rep = {durationMs: t - this.openedAt, depth: null};
       }
     }
-    return {reps: this.reps, cue: null, metric: Math.round(spread * 10) / 10};
+    return {reps: this.reps, rep, cue: null, metric: Math.round(spread * 10) / 10};
   }
 }

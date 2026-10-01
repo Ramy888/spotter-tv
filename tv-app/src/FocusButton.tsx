@@ -19,6 +19,8 @@ export const FocusButton = ({
   return (
     <Pressable
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={detail ? `${label}. ${detail}` : label}
       onPress={onPress}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
