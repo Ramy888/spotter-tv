@@ -159,12 +159,13 @@ async function coachSession(event, msg) {
   return ok;
 }
 
-// The TV can't play audio (or the user chose the phone as the speaker): play these clips on the phone.
-async function sayOnPhone(event, clips) {
+// Messages from the TV for its paired phone: voice clips to play (when the phone is the speaker)
+// and the live rep count. Only a TV connection can send them, and only to its own phone.
+async function toPhone(event, payload) {
   const conn = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `CONN#${event.requestContext.connectionId}` } }))).Item;
   if (conn?.role !== "tv" || !conn.code) return ok;
   const session = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `SESSION#${conn.code}` } }))).Item;
-  if (session?.phoneConn) await send(event, session.phoneConn, { type: "say", clips });
+  if (session?.phoneConn) await send(event, session.phoneConn, payload);
   return ok;
 }
 
@@ -182,7 +183,8 @@ async function onMessage(event) {
   const msg = parseMessage(event.body);
   if (msg?.type === "host") return hostSession(event);
   if (msg?.type === "coach") return coachSession(event, msg.msg);
-  if (msg?.type === "say") return sayOnPhone(event, msg.clips);
+  if (msg?.type === "say") return toPhone(event, { type: "say", clips: msg.clips });
+  if (msg?.type === "status") return toPhone(event, { type: "status", reps: msg.reps, exercise: msg.exercise });
   if (msg?.type !== "frame") return ok;
   const frame = msg;
 

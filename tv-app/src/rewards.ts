@@ -24,6 +24,11 @@ export class RewardTracker {
   // target: the rep count the coach suggested last time for this exercise, if any.
   constructor(private readonly target: number | null = null) {}
 
+  // Clean reps in a row right now (no half reps, no rushed reps).
+  get cleanStreak(): number {
+    return this.streak;
+  }
+
   update(u: ExerciseUpdate): Reward | null {
     // A half rep breaks the streak even though nothing was counted.
     if (u.cue === 'deeper') {

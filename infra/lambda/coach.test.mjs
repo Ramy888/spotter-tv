@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildMessages, parseCoachRequest, validateCoachReply } from "./coach.mjs";
+import { buildMessages, parseCoachRequest, rejectionReason, validateCoachReply } from "./coach.mjs";
 
 const facts = {
   exercise: "squat",
@@ -66,4 +66,18 @@ test("rejects malformed or oversized replies", () => {
   assert.equal(validateCoachReply("text", facts), null);
   assert.equal(validateCoachReply({ ...good, insights: [] }, facts), null);
   assert.equal(validateCoachReply({ ...good, headline: "x".repeat(61) }, facts), null);
+});
+
+test("rejectionReason names the rule a reply broke", () => {
+  assert.equal(rejectionReason(good, facts), null);
+  assert.equal(rejectionReason({ ...good, next: "Next time, do 95 squats." }, facts), "invented number 95");
+  assert.equal(rejectionReason({ ...good, insights: ["Depth faded to 102°.", "Steady pace: 2.1 s."] }, facts), "dropped number 86");
+  assert.equal(rejectionReason({ ...good, next: "Next time: 6 squats with weights." }, facts), "banned topic: weights");
+});
+
+test("number words count as the same fact as digits", () => {
+  const withOne = { ...facts, summary: { ...facts.summary, insights: [...facts.summary.insights, "1 rep didn't count because it was too shallow."] } };
+  const reply = { ...good, insights: [...good.insights, "One rep was too shallow to count."] };
+  assert.equal(rejectionReason(reply, withOne), null);
+  assert.equal(rejectionReason({ ...good, insights: [...good.insights, "Three reps were too shallow."] }, withOne), "invented number 3");
 });

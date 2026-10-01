@@ -1,10 +1,11 @@
 import React, {useEffect, useMemo, useRef} from 'react';
 import {Animated, Easing, StyleSheet, Text} from 'react-native';
 import {Reward} from './rewards';
+import {color, font} from './theme';
 
 const DURATION_MS = 1500;
 const PARTICLES = 6; // half on each side of the rep count
-const COUNT_CLEARANCE = 150; // keep the middle clear so the count stays readable
+const COUNT_CLEARANCE = 130; // keep the middle clear so the count stays readable
 
 // Fades in, holds, fades out over DURATION_MS. Remount (new `key`) to play again.
 function usePlayOnce() {
@@ -26,7 +27,7 @@ export const CelebrationBurst = ({reward}: {reward: Reward}) => {
   const particles = useMemo(
     () =>
       Array.from({length: PARTICLES}, (_, i) => ({
-        x: (i % 2 ? 1 : -1) * (COUNT_CLEARANCE + Math.floor(i / 2) * 90 + Math.random() * 30),
+        x: (i % 2 ? 1 : -1) * (COUNT_CLEARANCE + Math.floor(i / 2) * 70 + Math.random() * 20), // stays inside the ring
         rise: 140 + Math.random() * 120, // stops short of the title
         start: Math.random() * 0.2, // staggered launch, as a fraction of the duration
       })),
@@ -83,9 +84,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 24,
     borderRadius: 999,
-    backgroundColor: '#1d2a33',
+    backgroundColor: color.accentSurface,
     borderWidth: 3,
-    borderColor: '#44ccff',
+    borderColor: color.accent,
   },
-  badgeText: {color: '#fff', fontSize: 32, fontWeight: '800'},
+  badgeText: {color: color.text, fontSize: 30, fontFamily: font.display},
 });

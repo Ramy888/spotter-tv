@@ -97,7 +97,7 @@ describe('App', () => {
       }
     }
     act(() => jest.advanceTimersByTime(200));
-    expect(screen.getByTestId('cue')).toHaveTextContent('Go deeper');
+    expect(screen.getByTestId('cue')).toHaveTextContent(/go deeper/i);
     expect(screen.getByText('0')).toBeTruthy();
     jest.useRealTimers();
   });
@@ -207,7 +207,7 @@ describe('App', () => {
     fireEvent.press(screen.getByTestId('finish'));
     expect(screen.getByTestId('summary-headline')).toHaveTextContent('5 squats done');
     expect(screen.getByText(/Steady pace/)).toBeTruthy();
-    expect(screen.getByText('Next time: 7 squats with the same form.')).toBeTruthy();
+    expect(screen.getByText('7 squats with the same form.')).toBeTruthy(); // shown under the NEXT TIME label
     jest.useRealTimers();
   });
 
@@ -217,8 +217,8 @@ describe('App', () => {
     startSquats(screen);
     fireEvent.press(screen.getByTestId('finish'));
     fireEvent.press(screen.getByTestId('again'));
-    expect(screen.getByText('squats')).toBeTruthy();
-    expect(screen.getByText('0')).toBeTruthy();
+    expect(screen.getByText(/Set\s*2/)).toBeTruthy(); // the second set of the same exercise
+    expect(screen.getByLabelText('0 squats')).toBeTruthy();
     jest.useRealTimers();
   });
 
@@ -296,11 +296,11 @@ describe('App', () => {
     deliver({type: 'session', code: 'KH7VET'});
     deliver({...frame(0), t: 0});
     act(() => jest.advanceTimersByTime(200));
-    expect(screen.getByTestId('voice-mode')).toHaveTextContent('Voice: TV');
+    expect(screen.getByTestId('voice-mode')).toHaveTextContent(/voice: TV/i);
     fireEvent.press(screen.getByTestId('voice-mode'));
-    expect(screen.getByTestId('voice-mode')).toHaveTextContent('Voice: Phone');
+    expect(screen.getByTestId('voice-mode')).toHaveTextContent(/voice: Phone/i);
     fireEvent.press(screen.getByTestId('voice-mode'));
-    expect(screen.getByTestId('voice-mode')).toHaveTextContent('Voice: Off');
+    expect(screen.getByTestId('voice-mode')).toHaveTextContent(/voice: Off/i);
     jest.useRealTimers();
   });
 

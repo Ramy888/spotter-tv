@@ -49,3 +49,10 @@ test("parseMessage accepts a say request with valid clip ids only", () => {
   assert.equal(parseMessage('{"action":"say","clips":["Count-5"]}'), null);
   assert.equal(parseMessage('{"action":"say","clips":"count-5"}'), null);
 });
+
+test("parseMessage accepts a status update with a valid rep count and exercise only", () => {
+  assert.deepEqual(parseMessage('{"action":"status","reps":7,"exercise":"squat"}'), { type: "status", reps: 7, exercise: "squat" });
+  assert.equal(parseMessage('{"action":"status","reps":-1,"exercise":"squat"}'), null);
+  assert.equal(parseMessage('{"action":"status","reps":2.5,"exercise":"squat"}'), null);
+  assert.equal(parseMessage('{"action":"status","reps":3,"exercise":"<b>hi</b>"}'), null);
+});

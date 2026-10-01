@@ -1,18 +1,19 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Dimensions, StyleSheet, Text, View} from 'react-native';
-import {CelebrationBadge, CelebrationBurst} from './Celebration';
 import {CoachSummary, coach} from './coach';
 import {PHONE_URL, RELAY_URL} from './config';
-import {EXERCISES, ExerciseDef, ExerciseId} from './exercises';
+import {ExerciseDef, ExerciseId} from './exercises';
 import {Point} from './exercises/pose';
-import {CUE_TEXT, Cue, Exercise} from './exercises/types';
-import {FocusButton} from './FocusButton';
-import {QrCode} from './QrCode';
+import {Cue, Exercise} from './exercises/types';
 import {RelayMessageReader} from './relayMessages';
 import {Reward, RewardTracker} from './rewards';
+import {PairScreen} from './screens/PairScreen';
+import {History, PickScreen} from './screens/PickScreen';
+import {SummaryScreen, SummaryStats} from './screens/SummaryScreen';
+import {WorkoutScreen} from './screens/WorkoutScreen';
 import {Session, recordUpdate, startSession} from './session';
 import {VoiceCoach} from './voice';
 import {VoiceMode, VoicePlayer} from './voicePlayer';
+import {Stage} from './Stage';
 
 // connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
 type Phase = 'connecting' | 'waiting' | 'picking' | 'active' | 'summary';
@@ -27,22 +28,44 @@ const KEEPALIVE_MS = 5 * 60 * 1000;
 const UI_INTERVAL_MS = 100;
 const CUE_SHOW_MS = 2500;
 
-// A TV screen doesn't resize, so read it once instead of subscribing to changes.
-const screenSize = Dimensions.get('window');
-const QR_SIZE = Math.round(Math.min(screenSize.height * 0.55, screenSize.width * 0.3));
-
-// `celebration.id` changes for each new reward, which remounts the animation.
 const VOICE_LABEL: Record<VoiceMode, string> = {tv: 'TV', phone: 'Phone', off: 'Off'};
 const NEXT_VOICE: Record<VoiceMode, VoiceMode> = {tv: 'phone', phone: 'off', off: 'tv'};
 
+// `celebration.id` changes for each new reward, which remounts the animation.
 type Workout = {
   reps: number;
   metric: number | null;
   cue: Cue | null;
   cueAt: number;
   celebration: {reward: Reward; id: number} | null;
+  target: number | null;
+  set: number;
+  paceMs: number | null;
+  streak: number;
+  bestDepth: number | null;
 };
-const EMPTY_WORKOUT: Workout = {reps: 0, metric: null, cue: null, cueAt: 0, celebration: null};
+const EMPTY_WORKOUT: Workout = {
+  reps: 0,
+  metric: null,
+  cue: null,
+  cueAt: 0,
+  celebration: null,
+  target: null,
+  set: 1,
+  paceMs: null,
+  streak: 0,
+  bestDepth: null,
+};
+
+const average = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+function sessionStats(s: Session): Pick<Workout, 'paceMs' | 'bestDepth'> {
+  const depths = s.reps.map((r) => r.depth).filter((d): d is number => d != null);
+  return {
+    paceMs: average(s.reps.map((r) => r.durationMs)),
+    bestDepth: depths.length ? Math.min(...depths) : null,
+  };
+}
 
 export const App = () => {
   const [phase, setPhase] = useState<Phase>('connecting');
@@ -53,6 +76,8 @@ export const App = () => {
   const [summary, setSummary] = useState<CoachSummary | null>(null);
   const [aiCoached, setAiCoached] = useState(false);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('tv');
+  const [history, setHistory] = useState<History>({});
+  const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
 
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
@@ -60,6 +85,7 @@ export const App = () => {
   const rewards = useRef<RewardTracker | null>(null);
   // Last coach target per exercise, so beating it next time can be celebrated.
   const targets = useRef<Partial<Record<ExerciseId, number>>>({});
+  const sets = useRef<Partial<Record<ExerciseId, number>>>({});
   const screen = useRef<Screen>('pick');
   const socket = useRef<WebSocket | null>(null);
   // True while a coach request for the summary on screen is outstanding.
@@ -96,8 +122,9 @@ export const App = () => {
     session.current = startSession(def.id, Date.now());
     rewards.current = new RewardTracker(targets.current[def.id] ?? null);
     screen.current = 'workout';
-    latest.current = EMPTY_WORKOUT;
-    setWorkout(EMPTY_WORKOUT);
+    sets.current[def.id] = (sets.current[def.id] ?? 0) + 1;
+    latest.current = {...EMPTY_WORKOUT, target: targets.current[def.id] ?? null, set: sets.current[def.id]!};
+    setWorkout(latest.current);
     setExercise(def);
     setPhase('active');
   };
@@ -118,9 +145,12 @@ export const App = () => {
     screen.current = 'summary';
     if (session.current) {
       const result = coach(session.current);
+      const done = session.current;
       if (result.target != null) {
-        targets.current[session.current.exercise] = result.target;
+        targets.current[done.exercise] = result.target;
       }
+      setHistory((h) => ({...h, [done.exercise]: {last: done.reps.length, target: result.target}}));
+      setSummaryStats({...sessionStats(done), reps: done.reps.length, clean: done.reps.length - done.cues.slower});
       setSummary(result);
       setAiCoached(false);
       // Show the rule-based summary now; the relay may send back an AI rewrite of it.
@@ -205,12 +235,19 @@ export const App = () => {
           voice.current.say(voiceCoach.current.update(u, reward, t));
         }
         latest.current = {
+          ...prev,
+          ...(u.rep && session.current ? sessionStats(session.current) : {}),
           reps: u.reps,
           metric: u.metric,
           cue: u.cue ?? (now - prev.cueAt < CUE_SHOW_MS ? prev.cue : null),
           cueAt: u.cue ? now : prev.cueAt,
           celebration: reward ? {reward, id: (prev.celebration?.id ?? 0) + 1} : prev.celebration,
+          streak: rewards.current?.cleanStreak ?? 0,
         };
+        // Lets the phone show the live count too.
+        if (u.rep && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({action: 'status', reps: u.reps, exercise: session.current?.exercise}));
+        }
       }
       if (!uiTimer.current) {
         uiTimer.current = setTimeout(flushUi, UI_INTERVAL_MS);
@@ -286,133 +323,32 @@ export const App = () => {
     };
   }, []);
 
+  let content: React.ReactNode;
   if (phase === 'active' && exercise) {
-    return (
-      <View style={styles.screen}>
-        <Text style={styles.brand}>{exercise.name}</Text>
-        <Text style={styles.reps} accessibilityLabel={`${workout.reps} ${exercise.unit}`}>
-          {workout.reps}
-        </Text>
-        <Text style={styles.label}>{exercise.unit}</Text>
-        <View style={styles.cueSlot}>
-          {workout.cue ? (
-            <Text style={styles.cue} testID="cue">
-              {CUE_TEXT[workout.cue]}
-            </Text>
-          ) : workout.celebration ? (
-            <CelebrationBadge key={workout.celebration.id} reward={workout.celebration.reward} />
-          ) : null}
-        </View>
-        <Text style={styles.meta}>
-          {workout.metric == null ? '' : `${exercise.metricLabel} ${workout.metric}${exercise.id === 'jumping-jack' ? '×' : '°'} · `}
-          {fps} frames/s
-        </Text>
-        <View style={styles.actions}>
-          <FocusButton label="Finish" onPress={finish} preferred testID="finish" />
-        </View>
-        {workout.celebration && (
-          <CelebrationBurst key={workout.celebration.id} reward={workout.celebration.reward} />
-        )}
-      </View>
+    content = <WorkoutScreen exercise={exercise} w={workout} fps={fps} onFinish={finish} />;
+  } else if (phase === 'summary' && exercise && summary && summaryStats) {
+    content = (
+      <SummaryScreen
+        exercise={exercise}
+        stats={summaryStats}
+        summary={summary}
+        aiCoached={aiCoached}
+        onAgain={() => choose(exercise)}
+        onNew={newWorkout}
+      />
     );
-  }
-
-  if (phase === 'summary' && exercise && summary) {
-    return (
-      <View style={styles.screen}>
-        <Text style={styles.brand}>{exercise.name}</Text>
-        <Text style={styles.headline} testID="summary-headline">
-          {summary.headline}
-        </Text>
-        {aiCoached && (
-          <Text style={styles.aiLabel} testID="ai-label">
-            ✨ AI coach
-          </Text>
-        )}
-        <View style={styles.insights}>
-          {summary.insights.map((line) => (
-            <Text key={line} style={styles.insight}>
-              {line}
-            </Text>
-          ))}
-        </View>
-        <Text style={styles.next}>{summary.next}</Text>
-        <View style={styles.picker}>
-          <FocusButton label="Same again" onPress={() => choose(exercise)} preferred testID="again" />
-          <FocusButton label="New workout" onPress={newWorkout} testID="new-workout" />
-        </View>
-      </View>
+  } else if (phase === 'picking') {
+    content = (
+      <PickScreen
+        fps={fps}
+        history={history}
+        voiceLabel={VOICE_LABEL[voiceMode]}
+        onPick={choose}
+        onCycleVoice={cycleVoice}
+      />
     );
+  } else {
+    content = <PairScreen code={phase === 'waiting' ? code : null} phoneUrl={PHONE_URL} />;
   }
-
-  if (phase === 'picking') {
-    return (
-      <View style={styles.screen}>
-        <Text style={styles.brand}>Spotter</Text>
-        <Text style={styles.step}>Phone connected. Choose a workout</Text>
-        <View style={styles.picker}>
-          {EXERCISES.map((def, i) => (
-            <FocusButton
-              key={def.id}
-              label={def.name}
-              onPress={() => choose(def)}
-              preferred={i === 0}
-              testID={`pick-${def.id}`}
-            />
-          ))}
-        </View>
-        <View style={styles.actions}>
-          <FocusButton label={`Voice: ${VOICE_LABEL[voiceMode]}`} onPress={cycleVoice} testID="voice-mode" />
-        </View>
-        <Text style={styles.meta}>{fps} frames/s from your phone</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.screen}>
-      <Text style={styles.brand}>Spotter</Text>
-      {phase === 'waiting' && code ? (
-        <View style={styles.pairing}>
-          <QrCode value={`${PHONE_URL}?code=${code}`} size={QR_SIZE} />
-          <View style={styles.pairingText}>
-            <Text style={styles.step}>Scan with your phone's camera</Text>
-            <Text style={styles.or}>or open the Spotter page and enter</Text>
-            <Text style={styles.code} testID="pairing-code">
-              {code}
-            </Text>
-            <Text style={styles.hintSmall}>
-              Then lean your phone upright about 2.5–3 m away so your whole body is in view.
-            </Text>
-          </View>
-        </View>
-      ) : (
-        <Text style={styles.hint}>Connecting…</Text>
-      )}
-    </View>
-  );
+  return <Stage>{content}</Stage>;
 };
-
-const styles = StyleSheet.create({
-  screen: {flex: 1, backgroundColor: '#0b0b0f', alignItems: 'center', justifyContent: 'center', padding: 48},
-  brand: {color: '#44ccff', fontSize: 40, fontWeight: '700', marginBottom: 24},
-  reps: {color: '#fff', fontSize: 150, fontWeight: '800', lineHeight: 170},
-  label: {color: '#aaa', fontSize: 36},
-  cueSlot: {marginTop: 12, minHeight: 56, justifyContent: 'center'},
-  cue: {color: '#ffcc66', fontSize: 44, fontWeight: '700'},
-  hint: {color: '#ffcc66', fontSize: 36, marginTop: 24},
-  hintSmall: {color: '#aaa', fontSize: 22, marginTop: 24},
-  meta: {color: '#666', fontSize: 24, marginTop: 16},
-  actions: {marginTop: 20},
-  headline: {color: '#fff', fontSize: 56, fontWeight: '800'},
-  aiLabel: {color: '#44ccff', fontSize: 22, marginTop: 8},
-  insights: {marginTop: 24, maxWidth: 1200},
-  insight: {color: '#aaa', fontSize: 28, marginTop: 12, textAlign: 'center'},
-  next: {color: '#ffcc66', fontSize: 32, fontWeight: '700', marginTop: 28},
-  picker: {flexDirection: 'row', marginTop: 40},
-  pairing: {flexDirection: 'row', alignItems: 'center', maxWidth: '100%'},
-  pairingText: {marginLeft: 48, flexShrink: 1},
-  step: {color: '#fff', fontSize: 32, fontWeight: '700'},
-  or: {color: '#aaa', fontSize: 24, marginTop: 16},
-  code: {color: '#fff', fontSize: 72, fontWeight: '800', letterSpacing: 10, marginTop: 8},
-});

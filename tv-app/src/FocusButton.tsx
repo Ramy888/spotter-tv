@@ -1,19 +1,27 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text} from 'react-native';
+import {Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {color, font} from './theme';
 
-// A D-pad-friendly button: the focused one is clearly highlighted, since a TV has no pointer.
+// A D-pad-friendly button. A TV has no pointer, so the focused one must be unmistakable from 3 m:
+// volt border, tinted fill and a slight lift. `children` replaces the label for card-style buttons.
 export const FocusButton = ({
   label,
   detail,
   onPress,
   preferred = false,
   testID,
+  pill = false,
+  style,
+  children,
 }: {
   label: string;
   detail?: string;
   onPress: () => void;
   preferred?: boolean;
   testID?: string;
+  pill?: boolean;
+  style?: StyleProp<ViewStyle>;
+  children?: (focused: boolean) => React.ReactNode;
 }) => {
   const [focused, setFocused] = useState(false);
   return (
@@ -25,27 +33,40 @@ export const FocusButton = ({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       hasTVPreferredFocus={preferred}
-      style={[styles.button, focused && styles.focused]}>
-      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
-      {detail ? <Text style={styles.detail}>{detail}</Text> : null}
+      style={[pill ? styles.pill : styles.button, focused && styles.focused, style]}>
+      {children ? (
+        children(focused)
+      ) : (
+        <View style={styles.content}>
+          <Text style={[pill ? styles.pillLabel : styles.label, focused && styles.labelFocused]}>{label}</Text>
+          {detail ? <Text style={styles.detail}>{detail}</Text> : null}
+        </View>
+      )}
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 28,
-    paddingHorizontal: 36,
-    marginHorizontal: 12,
-    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    borderRadius: 18,
     borderWidth: 4,
-    borderColor: '#24242d',
-    backgroundColor: '#15151c',
-    minWidth: 240,
-    alignItems: 'center',
+    borderColor: color.raised,
+    backgroundColor: color.surface,
   },
-  focused: {borderColor: '#44ccff', backgroundColor: '#1d2a33', transform: [{scale: 1.04}]},
-  label: {color: '#ccc', fontSize: 34, fontWeight: '700'},
-  labelFocused: {color: '#fff'},
-  detail: {color: '#888', fontSize: 22, marginTop: 8},
+  pill: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    borderWidth: 3,
+    borderColor: color.line,
+    backgroundColor: color.surface,
+  },
+  focused: {borderColor: color.accent, backgroundColor: color.accentSurface, transform: [{translateY: -6}]},
+  content: {alignItems: 'center'},
+  label: {color: color.textIdle, fontSize: 26, fontFamily: font.bodyBold},
+  pillLabel: {color: color.textIdle, fontSize: 20, fontFamily: font.bodyBold},
+  labelFocused: {color: color.text},
+  detail: {color: color.textSecondary, fontSize: 18, fontFamily: font.body, marginTop: 6},
 });

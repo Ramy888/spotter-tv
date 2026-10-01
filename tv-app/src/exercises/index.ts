@@ -10,6 +10,7 @@ export type ExerciseDef = {
   name: string;
   unit: string; // plural noun under the rep count
   metricLabel: string;
+  depthTarget: number; // angle a rep must go below to count (shown as the gauge marker)
   create: () => Exercise;
 };
 
@@ -19,6 +20,7 @@ export const EXERCISES: ExerciseDef[] = [
     name: 'Squats',
     unit: 'squats',
     metricLabel: 'knee',
+    depthTarget: 110,
     // Both knees bend in a squat: track the straighter one so a shift of weight doesn't count.
     create: () =>
       new AngleRepDetector({
@@ -35,6 +37,7 @@ export const EXERCISES: ExerciseDef[] = [
     name: 'Lunges',
     unit: 'lunges',
     metricLabel: 'front knee',
+    depthTarget: 105,
     // One knee bends in a lunge: track the more bent one.
     create: () =>
       new AngleRepDetector({
@@ -51,6 +54,7 @@ export const EXERCISES: ExerciseDef[] = [
     name: 'Jumping jacks',
     unit: 'jumping jacks',
     metricLabel: 'feet apart',
+    depthTarget: 0,
     create: () => new JumpingJackDetector(),
   },
 ];

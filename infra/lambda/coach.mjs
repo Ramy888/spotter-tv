@@ -29,7 +29,7 @@ export function buildMessages(facts) {
         "You are Spotter, a warm, upbeat fitness coach on a TV screen, talking directly to someone (\"you\") who just finished a bodyweight set. " +
         "Rewrite the workout summary you are given in your own encouraging coaching voice. " +
         "Rules: each insight you are given must appear in your insights, rewritten but keeping all of its numbers and its advice; " +
-        "never add numbers, facts, equipment, weights, or medical advice; " +
+        "never add numbers, facts, equipment, weights, or medical advice; write every number as digits; " +
         "headline: a short, encouraging line of at most 6 words that keeps the rep count; " +
         "each insight: one sentence of at most 22 words; " +
         "next: one motivating sentence that keeps the same target number; target: exactly the given target. Reply only with JSON.\n\n" +
@@ -40,33 +40,49 @@ export function buildMessages(facts) {
   ];
 }
 
-const numbersIn = (text) => (text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
+// Numbers in a text, written as digits or as words ("one rep" is the same fact as "1 rep").
+const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+  "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+const WORD_RE = new RegExp(`\\b(${WORDS.join("|")})\\b`, "gi");
+const numbersIn = (text) => [
+  ...(text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number),
+  ...(text.match(WORD_RE) ?? []).map((w) => WORDS.indexOf(w.toLowerCase())),
+];
 
-// Accepts the model's reply only if it stays within the facts. Returns the summary to show, or null.
-export function validateCoachReply(reply, facts) {
-  if (!reply || typeof reply !== "object") return null;
+// Why the model's reply can't be shown, or null if it's fine. Every reason means the TV keeps
+// its rule-based summary.
+export function rejectionReason(reply, facts) {
+  if (!reply || typeof reply !== "object") return "not an object";
   const { headline, insights, next } = reply;
-  if (!isText(headline, LIMITS.headline) || !isText(next, LIMITS.next)) return null;
-  if (!Array.isArray(insights) || insights.length === 0 || insights.length > LIMITS.insights) return null;
-  if (!insights.every((i) => isText(i, LIMITS.insight))) return null;
+  if (!isText(headline, LIMITS.headline) || !isText(next, LIMITS.next)) return "headline or next missing or too long";
+  if (!Array.isArray(insights) || insights.length === 0 || insights.length > LIMITS.insights) return "insight count";
+  if (!insights.every((i) => isText(i, LIMITS.insight))) return "insight empty or too long";
 
   const texts = [headline, next, ...insights];
-  if (texts.some((t) => BANNED.test(t))) return null;
+  const banned = texts.find((t) => BANNED.test(t));
+  if (banned) return `banned topic: ${banned.match(BANNED)[0]}`;
 
   const allowed = new Set([
     ...numbersIn(JSON.stringify(facts.summary)),
     facts.reps,
     ...(facts.summary.target != null ? [facts.summary.target] : []),
   ]);
-  if (texts.some((t) => numbersIn(t).some((n) => !allowed.has(n)))) return null;
+  const invented = texts.flatMap(numbersIn).find((n) => !allowed.has(n));
+  if (invented !== undefined) return `invented number ${invented}`;
 
   // Never less informative than the rule-based summary: every number it gave must survive.
-  const given = new Set(facts.summary.insights.flatMap(numbersIn));
   const kept = new Set(insights.flatMap(numbersIn));
-  if ([...given].some((n) => !kept.has(n))) return null;
+  const dropped = facts.summary.insights.flatMap(numbersIn).find((n) => !kept.has(n));
+  if (dropped !== undefined) return `dropped number ${dropped}`;
 
   const t = facts.summary.target;
-  if (t != null && !numbersIn(next).includes(t)) return null; // the target must survive the rewrite
+  if (t != null && !numbersIn(next).includes(t)) return "target missing from next"; // the target must survive the rewrite
+  return null;
+}
 
-  return { headline: headline.trim(), insights: insights.map((i) => i.trim()), next: next.trim(), target: t };
+// Accepts the model's reply only if it stays within the facts. Returns the summary to show, or null.
+export function validateCoachReply(reply, facts) {
+  if (rejectionReason(reply, facts)) return null;
+  const { headline, insights, next } = reply;
+  return { headline: headline.trim(), insights: insights.map((i) => i.trim()), next: next.trim(), target: facts.summary.target };
 }

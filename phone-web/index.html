@@ -3,54 +3,106 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0f">
+<meta name="theme-color" content="#0A0B10">
 <title>Spotter camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,800..900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #0b0b0f; --fg: #f2f2f5; --muted: #9a9aa6; --accent: #44ccff; --warn: #ffcc66; --bad: #ff6b6b; }
+  /* Spotter "Arena" theme: see docs/design-system.md */
+  :root { --ground: #0A0B10; --surface: #14161F; --raised: #1E2130; --line: #2A2E40; --text: #F4F5F7;
+          --muted: #A3A8B8; --accent: #C8FF3D; --accent-surface: #1A2410; --cue: #FFB547; --on-cue: #1A1206; --bad: #FF6B6B; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  main { max-width: 480px; margin: 0 auto; padding: 16px; min-height: 100%; display: flex; flex-direction: column; gap: 16px; }
-  h1 { margin: 8px 0 0; font-size: 28px; color: var(--accent); }
-  p { margin: 0; color: var(--muted); }
-  form { display: flex; gap: 8px; }
-  input { flex: 1; min-width: 0; font: 600 28px/1 ui-monospace, Menlo, monospace; letter-spacing: 6px; text-transform: uppercase;
-          padding: 12px; border-radius: 12px; border: 2px solid #33333d; background: #15151c; color: var(--fg); text-align: center; }
-  button { font: 600 18px/1 inherit; padding: 14px 18px; border-radius: 12px; border: 0; background: var(--accent); color: #002233; }
-  button.secondary { background: #24242d; color: var(--fg); }
-  #stage { position: relative; width: 100%; aspect-ratio: 3 / 4; background: #15151c; border-radius: 16px; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: var(--ground); color: var(--text); font: 17px/1.45 "DM Sans", system-ui, sans-serif; }
+  .display { font-family: Archivo, system-ui, sans-serif; font-stretch: 75%; font-weight: 900; text-transform: uppercase; }
+  .screen { max-width: 480px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+  #start { padding: max(48px, env(safe-area-inset-top)) 24px 32px; justify-content: space-between; gap: 28px; }
+  .wordmark { display: flex; align-items: center; gap: 10px; font-size: 24px; letter-spacing: 1px; }
+  .mark { width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+  .pill { align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; background: var(--surface);
+          border: 1px solid var(--line); font-size: 15px; font-weight: 500; }
+  .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--accent); }
+  h1 { margin: 0; font-size: 64px; line-height: 0.92; }
+  .copy { margin: 0; color: var(--muted); font-size: 18px; }
+  ul.points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  ul.points li { display: flex; align-items: center; gap: 12px; }
+  form { display: flex; flex-direction: column; gap: 10px; }
+  label { color: var(--muted); font-size: 15px; }
+  input { font: 800 30px/1 Archivo, system-ui, sans-serif; letter-spacing: 8px; text-transform: uppercase; text-align: center;
+          padding: 14px; border-radius: 16px; border: 2px solid var(--line); background: var(--surface); color: var(--text); }
+  .primary { height: 72px; border: 0; border-radius: 20px; background: var(--accent); color: var(--ground);
+             font: 900 26px/1 Archivo, system-ui, sans-serif; font-stretch: 85%; letter-spacing: 1px; text-transform: uppercase; }
+  .secondary { height: 52px; border-radius: 16px; background: var(--surface); border: 2px solid var(--line); color: var(--text); font: 700 17px/1 inherit; }
+  .note { color: var(--muted); font-size: 14px; text-align: center; margin: 0; }
+  #stage { position: relative; flex: 1; min-height: 60vh; background: #161925; overflow: hidden; }
   video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .mirror { transform: scaleX(-1); }
-  #status { font-weight: 600; }
-  .ok { color: var(--accent); } .warn { color: var(--warn); } .bad { color: var(--bad); }
-  #stats { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .row { display: flex; gap: 8px; }
-  .row button { flex: 1; }
+  #guide { position: absolute; left: 50%; top: 54%; height: 72%; transform: translate(-50%, -50%); pointer-events: none; }
+  #status { position: absolute; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); white-space: nowrap;
+            padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  #status.ok { background: rgba(10, 11, 16, 0.75); border: 2px solid var(--accent); color: var(--text); }
+  #status.warn { background: var(--cue); color: var(--on-cue); }
+  #status.bad { background: var(--bad); color: var(--ground); }
+  #panel { padding: 20px 24px max(28px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; }
+  #panel h2 { margin: 0; font-size: 30px; line-height: 1; }
+  .checks { display: flex; gap: 8px; }
+  .check { padding: 7px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; border: 2px solid var(--cue); background: #1F1A0E; color: var(--cue); }
+  .check.ok { border-color: var(--accent); background: var(--accent-surface); color: var(--accent); }
+  .live-row { display: flex; align-items: baseline; justify-content: space-between; }
+  #reps { font-size: 56px; line-height: 0.9; }
+  #exercise { font-size: 22px; margin-left: 10px; }
+  #stats { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<main>
-  <h1>Spotter</h1>
+<section id="start" class="screen">
+  <div style="display: flex; flex-direction: column; gap: 26px">
+    <div class="wordmark display"><span class="mark"></span>Spotter</div>
+    <div id="found" class="pill" hidden><span class="dot"></span><span id="foundText"></span></div>
+    <h1 class="display">Let's<br>train.</h1>
+    <p class="copy">Your phone becomes the camera. Your TV counts every rep and coaches you out loud.</p>
+  </div>
+  <ul class="points">
+    <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8FF3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>Video never leaves your phone</li>
+    <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8FF3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>No app to install</li>
+    <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8FF3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>Sound on: your coach talks</li>
+  </ul>
+  <form id="codeForm" autocomplete="off">
+    <div id="codeEntry">
+      <label for="code">Code on your TV</label>
+      <input id="code" maxlength="6" inputmode="text" autocapitalize="characters" required>
+    </div>
+    <button class="primary" type="submit">Start camera</button>
+    <p class="note">You'll be asked once for camera access</p>
+  </form>
+</section>
 
-  <section id="join">
-    <p>Enter the code shown on your TV.</p>
-    <form id="codeForm" autocomplete="off">
-      <input id="code" maxlength="6" inputmode="text" autocapitalize="characters" aria-label="Pairing code" required>
-      <button type="submit">Join</button>
-    </form>
-  </section>
-
-  <section id="session" hidden>
-    <div id="stage"><video id="cam" playsinline muted></video><canvas id="overlay"></canvas></div>
-    <div id="status" class="warn">Connecting…</div>
-    <p id="hint">Lean your phone upright about 2.5–3 m away so your whole body is in view.</p>
+<section id="session" class="screen" hidden>
+  <div id="stage">
+    <video id="cam" playsinline muted></video><canvas id="overlay"></canvas>
+    <svg id="guide" viewBox="0 0 200 480" fill="rgba(200, 255, 61, 0.06)" stroke="#C8FF3D" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M100 8c19 0 33 15 33 34s-14 35-33 35-33-16-33-35 14-34 33-34Z M78 86h44c20 0 34 12 38 30l18 104c2 11-13 15-17 5l-17-74-2 74 6 46-8 178c-1 12-21 12-22 0l-11-160h-4l-11 160c-1 12-21 12-22 0l-8-178 6-46-2-74-17 74c-4 10-19 6-17-5l18-104c4-18 18-30 38-30Z"/></svg>
+    <div id="status" class="warn" role="status">Connecting…</div>
+  </div>
+  <div id="panel">
+    <div id="framing">
+      <h2 class="display">Fit your body in the outline</h2>
+      <p class="copy" style="font-size: 16px; margin: 10px 0 14px">Lean the phone upright, about 3 m away. It starts on its own once it sees you from head to feet.</p>
+      <div class="checks"><span id="chkHead" class="check">Head</span><span id="chkHips" class="check">Hips</span><span id="chkFeet" class="check">Feet</span></div>
+    </div>
+    <div id="liveInfo" hidden>
+      <div class="live-row">
+        <div><span id="reps" class="display">0</span><span id="exercise" class="display"></span></div>
+        <div id="stats"></div>
+      </div>
+      <p class="copy" style="font-size: 15px; margin-top: 6px">Eyes on your TV. Keep this phone where it is.</p>
+    </div>
     <div class="row">
       <button id="flip" class="secondary" type="button">Flip camera</button>
       <button id="leave" class="secondary" type="button">Leave</button>
     </div>
-    <div id="stats"></div>
-  </section>
-</main>
+  </div>
+</section>
 
 <script type="module">
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
@@ -109,14 +161,48 @@ function setStatus(text, cls) {
   $("status").className = cls;
 }
 
+// Framing: the person must be visible from head to feet. The guide and checks show until they
+// have been for a second; frames are sent all along (the TV handles counting and "step back").
+const BODY = { Head: [0], Hips: [23, 24], Feet: [27, 28] };
+let fullSince = 0, framed = false, connected = false;
+
+function updateFraming(pose, now) {
+  const seen = Object.fromEntries(Object.entries(BODY).map(([part, idx]) =>
+    [part, !!pose && idx.every((i) => (pose[i].visibility ?? 0) >= 0.6)]));
+  for (const part of Object.keys(BODY)) $(`chk${part}`).classList.toggle("ok", seen[part]);
+  const missing = Object.keys(BODY).find((part) => !seen[part]);
+  fullSince = missing ? 0 : fullSince || now;
+  const nowFramed = !missing && now - fullSince > 1000;
+  if (nowFramed !== framed) {
+    framed = nowFramed;
+    $("framing").hidden = framed;
+    $("liveInfo").hidden = !framed;
+    $("guide").style.display = framed ? "none" : "";
+  }
+  if (!connected) return;
+  if (framed) setStatus("● LIVE ON YOUR TV", "ok");
+  else setStatus(missing ? `Step back · show your ${missing.toLowerCase()}` : "Hold still…", "warn");
+}
+
+// Keep the screen awake during a workout (where the browser supports it).
+let wakeLock = null;
+async function keepAwake() {
+  try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* not supported or denied */ }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && $("session").hidden === false) keepAwake(); });
+
 function connect() {
   ws = new WebSocket(`${config.relayUrl}?role=phone&code=${code}`);
-  ws.onopen = () => setStatus("Connected to your TV", "ok");
+  ws.onopen = () => { connected = true; setStatus("Connected · step into view", "warn"); };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.pong !== undefined) rtt = performance.now() - msg.pong;
     if (msg.type === "say" && Array.isArray(msg.clips)) say(msg.clips);
-    if (msg.type === "tv-left") setStatus("Your TV closed the session. Start a new one on the TV.", "bad");
+    if (msg.type === "status" && Number.isInteger(msg.reps)) {
+      $("reps").textContent = msg.reps;
+      $("exercise").textContent = String(msg.exercise ?? "").replace("-", " ") + (msg.reps === 1 ? "" : "s");
+    }
+    if (msg.type === "tv-left") { connected = false; setStatus("Your TV closed the session", "bad"); }
   };
   ws.onclose = () => {
     if (leaving) return;
@@ -125,6 +211,7 @@ function connect() {
       setStatus("That code didn't work. Check the code on your TV.", "bad");
       return;
     }
+    connected = false;
     setStatus("Reconnecting…", "warn");
     setTimeout(connect, 1500);
   };
@@ -145,8 +232,9 @@ async function openCamera() {
 
 async function start(joinCode) {
   code = joinCode;
-  $("join").hidden = true;
+  $("start").hidden = true;
   $("session").hidden = false;
+  keepAwake();
   history.replaceState(null, "", `?code=${code}`);
   try {
     setStatus("Loading pose model…", "warn");
@@ -290,6 +378,7 @@ function loop() {
   const ctx = $("overlay").getContext("2d");
   const pose = landmarker.detectForVideo($("cam"), now).landmarks[0];
   ctx.clearRect(0, 0, $("overlay").width, $("overlay").height);
+  updateFraming(pose, now);
 
   if (pose) {
     drawSkeleton(ctx, pose, $("overlay").width, $("overlay").height, facing === "user");
@@ -311,7 +400,7 @@ function loop() {
     fps = Math.round((frames * 1000) / (now - since));
     frames = 0;
     since = now;
-    $("stats").textContent = `code ${code} · tracking ${fps} fps · sending ${SEND_FPS}/s · round trip ${rtt == null ? "–" : Math.round(rtt) + " ms"}`;
+    $("stats").textContent = `${fps} fps · ${rtt == null ? "–" : Math.round(rtt) + " ms"}`;
   }
   if (!leaving) requestAnimationFrame(loop);
 }
@@ -341,8 +430,11 @@ $("leave").onclick = () => {
 
 const fromLink = new URLSearchParams(location.search).get("code")?.toUpperCase();
 if (fromLink && CODE_RE.test(fromLink)) {
-  // Camera access needs a user gesture on iOS, so a scanned QR link still asks for one tap.
+  // Arrived from the TV's QR code: no typing, just one tap (camera and audio both need a tap on iOS).
   $("code").value = fromLink;
+  $("codeEntry").hidden = true;
+  $("found").hidden = false;
+  $("foundText").textContent = `Found your TV · ${fromLink}`;
 }
 </script>
 </body>

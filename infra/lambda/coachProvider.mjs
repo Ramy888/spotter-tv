@@ -3,7 +3,7 @@
 // rule-based summary.
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
-import { COACH_TIMEOUT_MS, buildMessages, validateCoachReply } from "./coach.mjs";
+import { COACH_TIMEOUT_MS, buildMessages, rejectionReason, validateCoachReply } from "./coach.mjs";
 
 const PROVIDER = process.env.COACH_PROVIDER ?? "workers-ai";
 let workerSecret; // cached for the life of the Lambda container
@@ -62,7 +62,8 @@ export async function requestCoach(facts) {
     const call = PROVIDER === "bedrock" ? viaBedrock : viaWorkersAi;
     const reply = await call(buildMessages(facts), controller.signal);
     const summary = validateCoachReply(reply, facts);
-    return { status: summary ? "ok" : "rejected", provider: PROVIDER, summary, ms: Date.now() - started };
+    const status = summary ? "ok" : `rejected: ${rejectionReason(reply, facts)}`;
+    return { status, provider: PROVIDER, summary, ms: Date.now() - started };
   } catch (err) {
     return { status: `error: ${err.name}`, provider: PROVIDER, summary: null, ms: Date.now() - started };
   } finally {
