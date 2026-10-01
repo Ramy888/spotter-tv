@@ -1,10 +1,15 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Dimensions, StyleSheet, Text, View} from 'react-native';
 import {PHONE_URL, RELAY_URL} from './config';
+import {EXERCISES, ExerciseDef} from './exercises';
+import {Point} from './exercises/pose';
+import {CUE_TEXT, Cue, Exercise} from './exercises/types';
+import {FocusButton} from './FocusButton';
 import {QrCode} from './QrCode';
-import {Point, RepCounter, RepUpdate} from './repCounter';
+import {RelayMessageReader} from './relayMessages';
 
-type Phase = 'connecting' | 'waiting' | 'active';
+// connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout)
+type Phase = 'connecting' | 'waiting' | 'picking' | 'active';
 
 const RECONNECT_MS = 2000;
 const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gone
@@ -12,20 +17,48 @@ const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gon
 // pairing code while someone is fetching their phone. A ping every 5 minutes keeps it open.
 const KEEPALIVE_MS = 5 * 60 * 1000;
 const UI_INTERVAL_MS = 100;
+const CUE_SHOW_MS = 2500;
 
 // A TV screen doesn't resize, so read it once instead of subscribing to changes.
 const screenSize = Dimensions.get('window');
 const QR_SIZE = Math.round(Math.min(screenSize.height * 0.55, screenSize.width * 0.3));
 
+type Workout = {reps: number; metric: number | null; cue: Cue | null; cueAt: number};
+const EMPTY_WORKOUT: Workout = {reps: 0, metric: null, cue: null, cueAt: 0};
+
 export const App = () => {
   const [phase, setPhase] = useState<Phase>('connecting');
   const [code, setCode] = useState<string | null>(null);
-  const [reps, setReps] = useState(0);
-  const [knee, setKnee] = useState<number | null>(null);
+  const [exercise, setExercise] = useState<ExerciseDef | null>(null);
+  const [workout, setWorkout] = useState<Workout>(EMPTY_WORKOUT);
   const [fps, setFps] = useState(0);
-  const counter = useRef(new RepCounter());
+
+  // The socket handlers live in one long-lived effect, so they read current state through refs.
+  const detector = useRef<Exercise | null>(null);
+  const latest = useRef<Workout>(EMPTY_WORKOUT);
   const stats = useRef({frames: 0, since: Date.now(), lastFrameAt: 0, lastCapturedAt: -Infinity});
-  const latest = useRef<RepUpdate>({reps: 0, knee: null});
+  const uiTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const cancelUiUpdate = () => {
+    if (uiTimer.current) {
+      clearTimeout(uiTimer.current);
+      uiTimer.current = undefined;
+    }
+  };
+
+  const choose = (def: ExerciseDef) => {
+    detector.current = def.create();
+    latest.current = EMPTY_WORKOUT;
+    setWorkout(EMPTY_WORKOUT);
+    setExercise(def);
+    setPhase('active');
+  };
+
+  const backToPicker = () => {
+    cancelUiUpdate();
+    detector.current = null;
+    setPhase('picking');
+  };
 
   useEffect(() => {
     let ws: WebSocket;
@@ -34,12 +67,24 @@ export const App = () => {
 
     // Counting runs on every frame; the screen redraws at most every UI_INTERVAL_MS, so a slow
     // render can't back up the message queue.
-    let uiTimer: ReturnType<typeof setTimeout> | undefined;
     const flushUi = () => {
-      uiTimer = undefined;
-      setReps(latest.current.reps);
-      setKnee(latest.current.knee);
-      setPhase('active');
+      uiTimer.current = undefined;
+      if (detector.current) {
+        setWorkout(latest.current);
+        setPhase('active');
+      } else {
+        setPhase('picking');
+      }
+    };
+
+    const phoneGone = () => {
+      cancelUiUpdate();
+      detector.current = null;
+      stats.current.lastFrameAt = 0;
+      // A phone that comes back (page reload, new phone) starts a new clock.
+      stats.current.lastCapturedAt = -Infinity;
+      setFps(0);
+      setPhase((p) => (p === 'connecting' ? p : 'waiting'));
     };
 
     const onFrame = (kp: Point[], capturedAt: number | undefined) => {
@@ -53,40 +98,45 @@ export const App = () => {
         s.since = now;
       }
       // Time reps by when the phone captured the frame, not when it arrived: frames delayed and
-      // then delivered in a burst would otherwise look like squats faster than MIN_REP_MS.
+      // then delivered in a burst would otherwise look like reps faster than the minimum.
       const t = capturedAt ?? now;
       if (t < s.lastCapturedAt) {
         return; // out-of-order frame from the relay; it's already history
       }
       s.lastCapturedAt = t;
-      const before = latest.current.reps;
-      latest.current = counter.current.update(kp, t);
-      if (latest.current.reps !== before) {
-        console.log(`[spotter] rep ${latest.current.reps}`);
+      if (detector.current) {
+        const u = detector.current.update(kp, t);
+        const prev = latest.current;
+        latest.current = {
+          reps: u.reps,
+          metric: u.metric,
+          cue: u.cue ?? (now - prev.cueAt < CUE_SHOW_MS ? prev.cue : null),
+          cueAt: u.cue ? now : prev.cueAt,
+        };
       }
-      if (!uiTimer) {
-        uiTimer = setTimeout(flushUi, UI_INTERVAL_MS);
+      if (!uiTimer.current) {
+        uiTimer.current = setTimeout(flushUi, UI_INTERVAL_MS);
       }
     };
 
     const connect = () => {
       setPhase('connecting');
       ws = new WebSocket(`${RELAY_URL}?role=tv`);
+      const reader = new RelayMessageReader();
       ws.onopen = () => ws.send(JSON.stringify({action: 'host'}));
       ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data as string);
-        if (msg.type === 'session') {
+        const msg = reader.read(String(e.data));
+        if (!msg) {
+          return;
+        }
+        if (msg.type === 'session' && typeof msg.code === 'string') {
           console.log(`[spotter] session ${msg.code}`);
           setCode(msg.code);
           setPhase('waiting');
         } else if (msg.type === 'phone-left') {
-          if (uiTimer) {
-            clearTimeout(uiTimer); // a queued redraw would switch back to the workout screen
-            uiTimer = undefined;
-          }
-          setPhase('waiting');
+          phoneGone();
         } else if (Array.isArray(msg.kp)) {
-          onFrame(msg.kp as Point[], Number.isFinite(msg.t) ? msg.t : undefined);
+          onFrame(msg.kp as Point[], typeof msg.t === 'number' && Number.isFinite(msg.t) ? msg.t : undefined);
         }
       };
       ws.onclose = () => {
@@ -101,9 +151,7 @@ export const App = () => {
     // (camera paused, browser in the background) keeps its connection open.
     const watchdog = setInterval(() => {
       if (stats.current.lastFrameAt && Date.now() - stats.current.lastFrameAt > PHONE_SILENT_MS) {
-        stats.current.lastFrameAt = 0;
-        setFps(0);
-        setPhase((p) => (p === 'active' ? 'waiting' : p));
+        phoneGone();
       }
     }, 1000);
 
@@ -117,27 +165,52 @@ export const App = () => {
     return () => {
       closed = true;
       clearInterval(keepalive);
-      if (uiTimer) {
-        clearTimeout(uiTimer);
-      }
+      clearInterval(watchdog);
+      cancelUiUpdate();
       if (reconnect) {
         clearTimeout(reconnect);
       }
-      clearInterval(watchdog);
       ws.close();
     };
   }, []);
 
-  if (phase === 'active') {
+  if (phase === 'active' && exercise) {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.brand}>{exercise.name}</Text>
+        <Text style={styles.reps}>{workout.reps}</Text>
+        <Text style={styles.label}>{exercise.unit}</Text>
+        <Text style={styles.cue} testID="cue">
+          {workout.cue ? CUE_TEXT[workout.cue] : ' '}
+        </Text>
+        <Text style={styles.meta}>
+          {workout.metric == null ? '' : `${exercise.metricLabel} ${workout.metric}${exercise.id === 'jumping-jack' ? '×' : '°'} · `}
+          {fps} frames/s
+        </Text>
+        <View style={styles.actions}>
+          <FocusButton label="Change workout" onPress={backToPicker} preferred testID="back" />
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === 'picking') {
     return (
       <View style={styles.screen}>
         <Text style={styles.brand}>Spotter</Text>
-        <Text style={styles.reps}>{reps}</Text>
-        <Text style={styles.label}>squats</Text>
-        <Text style={styles.hint}>
-          {knee == null ? 'Step back: full body in frame' : `knee ${knee}°`}
-        </Text>
-        <Text style={styles.meta}>phone connected · {fps} frames/s</Text>
+        <Text style={styles.step}>Phone connected. Choose a workout</Text>
+        <View style={styles.picker}>
+          {EXERCISES.map((def, i) => (
+            <FocusButton
+              key={def.id}
+              label={def.name}
+              onPress={() => choose(def)}
+              preferred={i === 0}
+              testID={`pick-${def.id}`}
+            />
+          ))}
+        </View>
+        <Text style={styles.meta}>{fps} frames/s from your phone</Text>
       </View>
     );
   }
@@ -157,7 +230,6 @@ export const App = () => {
             <Text style={styles.hintSmall}>
               Then lean your phone upright about 2.5–3 m away so your whole body is in view.
             </Text>
-            {reps > 0 && <Text style={styles.meta}>{reps} squats so far</Text>}
           </View>
         </View>
       ) : (
@@ -170,11 +242,14 @@ export const App = () => {
 const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: '#0b0b0f', alignItems: 'center', justifyContent: 'center', padding: 48},
   brand: {color: '#44ccff', fontSize: 40, fontWeight: '700', marginBottom: 24},
-  reps: {color: '#fff', fontSize: 220, fontWeight: '800'},
-  label: {color: '#aaa', fontSize: 40},
+  reps: {color: '#fff', fontSize: 150, fontWeight: '800', lineHeight: 170},
+  label: {color: '#aaa', fontSize: 36},
+  cue: {color: '#ffcc66', fontSize: 44, fontWeight: '700', marginTop: 12, minHeight: 56},
   hint: {color: '#ffcc66', fontSize: 36, marginTop: 24},
   hintSmall: {color: '#aaa', fontSize: 22, marginTop: 24},
-  meta: {color: '#666', fontSize: 24, marginTop: 32},
+  meta: {color: '#666', fontSize: 24, marginTop: 16},
+  actions: {marginTop: 20},
+  picker: {flexDirection: 'row', marginTop: 40},
   pairing: {flexDirection: 'row', alignItems: 'center', maxWidth: '100%'},
   pairingText: {marginLeft: 48, flexShrink: 1},
   step: {color: '#fff', fontSize: 32, fontWeight: '700'},

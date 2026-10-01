@@ -74,3 +74,21 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Severity:** Medium. Debugging the app's behavior needed screenshots of the device window instead.
 - **Workaround:** Screenshots of the Virtual Device window, plus tests on the host with Jest.
 - **Suggestion:** Don't suppress JavaScript console output for debug builds, or document the flag or log level that shows it.
+
+## 9. Vega WebSocket delivers one message as two `onmessage` events
+- **Date:** 2026-10-01
+- **Task:** Receive ~1 KB JSON pose frames at 15 per second from an API Gateway WebSocket in a Vega app (SDK 0.24, Vega Virtual Device).
+- **Steps:** Called `JSON.parse(e.data)` in `ws.onmessage`. The same code works in Node and in browsers.
+- **Expected:** Each `onmessage` event carries exactly one complete WebSocket message, as the WebSocket API specifies.
+- **Actual:** Sometimes one message arrives as two events. The logs show `JSON Parse error: Unexpected end of input` immediately followed by `Unexpected character: ,` (the remainder). The uncaught exception restarted the app, which showed up as a new pairing code and as lost frames (about 10 of 15 per second).
+- **Severity:** High. It looks like flaky networking, and it crashes apps that parse messages directly.
+- **Workaround:** `src/relayMessages.ts` joins pieces until they parse, never throws, and caps its buffer.
+- **Suggestion:** Deliver complete messages, or document the behavior.
+
+## 10. `inputd-cli button_press` key names aren't documented
+- **Date:** 2026-10-01
+- **Task:** Press D-pad keys on the Vega Virtual Device from a script, to test TV focus navigation.
+- **Steps:** `vega device run-cmd -c 'inputd-cli button_press dpad_right'`
+- **Actual:** `invalid button value: ["dpad_right"]`. The help text doesn't list valid names. Linux key codes work: `KEY_RIGHT`, `KEY_ENTER`.
+- **Severity:** Low.
+- **Suggestion:** List the accepted key names in `inputd-cli --help`, and expose key presses as a `vega device` command.

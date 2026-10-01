@@ -1,6 +1,6 @@
 /* eslint-env es2020 */
 import 'react-native';
-import {act, render} from '@testing-library/react-native';
+import {act, fireEvent, render} from '@testing-library/react-native';
 import * as React from 'react';
 
 import {App} from '../src/App';
@@ -34,6 +34,14 @@ function frame(kneeOffset: number) {
   return {kp};
 }
 
+// Phone connects (first frame arrives), then the user picks Squats with the remote.
+function startSquats(screen: ReturnType<typeof render>) {
+  deliver({type: 'session', code: 'KH7VET'});
+  deliver({...frame(0), t: 0});
+  act(() => jest.advanceTimersByTime(200));
+  fireEvent.press(screen.getByTestId('pick-squat'));
+}
+
 describe('App', () => {
   beforeEach(() => {
     (globalThis as any).WebSocket = FakeSocket;
@@ -53,26 +61,55 @@ describe('App', () => {
     expect(screen.getByTestId('qr-code')).toBeTruthy();
   });
 
-  it('switches to the workout screen and counts reps when frames arrive', () => {
+  it('shows the workout picker once the phone connects, and counts squats after picking', () => {
     jest.useFakeTimers();
     const screen = render(<App />);
     deliver({type: 'session', code: 'KH7VET'});
-    const nowSpy = jest.spyOn(Date, 'now');
-    let t = 10_000;
-    const send = (offset: number, n: number) => {
+    deliver({...frame(0), t: 0});
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('pick-squat')).toBeTruthy();
+    expect(screen.getByTestId('pick-lunge')).toBeTruthy();
+    expect(screen.getByTestId('pick-jumping-jack')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    let t = 0;
+    for (const [offset, n] of [[0, 40], [0.2, 40], [0, 40]] as const) {
       for (let i = 0; i < n; i++) {
         t += 33;
-        nowSpy.mockReturnValue(t);
-        deliver(frame(offset));
+        deliver({...frame(offset), t});
       }
-    };
-    send(0, 10);
-    send(0.2, 20);
-    send(0, 20);
-    act(() => jest.advanceTimersByTime(200)); // let the throttled screen update run
+    }
+    act(() => jest.advanceTimersByTime(200));
     expect(screen.getByText('1')).toBeTruthy();
-    expect(screen.getByText(/phone connected/)).toBeTruthy();
-    nowSpy.mockRestore();
+    expect(screen.getByText('squats')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('shows a "Go deeper" cue for a half squat', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    let t = 0;
+    for (const [offset, n] of [[0, 40], [0.08, 40], [0, 40]] as const) {
+      for (let i = 0; i < n; i++) {
+        t += 33;
+        deliver({...frame(offset), t});
+      }
+    }
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('cue')).toHaveTextContent('Go deeper');
+    expect(screen.getByText('0')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('goes back to the picker from a workout', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('back'));
+    deliver(frame(0));
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('pick-lunge')).toBeTruthy();
     jest.useRealTimers();
   });
 
@@ -99,11 +136,11 @@ describe('App', () => {
   it('times reps by capture time, so a burst of delayed frames still counts every squat', () => {
     jest.useFakeTimers();
     const screen = render(<App />);
-    deliver({type: 'session', code: 'KH7VET'});
-    // Two squats captured 3 s apart, but delivered all at once (same arrival time).
+    startSquats(screen);
+    // Two squats captured seconds apart, but delivered all at once (same arrival time).
     let t = 0;
     for (let rep = 0; rep < 2; rep++) {
-      for (const [offset, n] of [[0, 15], [0.2, 15], [0, 15]] as const) {
+      for (const [offset, n] of [[0, 40], [0.2, 40], [0, 40]] as const) {
         for (let i = 0; i < n; i++) {
           t += 33;
           deliver({...frame(offset), t});
@@ -112,6 +149,43 @@ describe('App', () => {
     }
     act(() => jest.advanceTimersByTime(200)); // let the throttled screen update run
     expect(screen.getByText('2')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('keeps counting after the phone reloads the page and its clock restarts', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    const squat = (start: number) => {
+      let t = start;
+      for (const [offset, n] of [[0, 40], [0.2, 40], [0, 40]] as const) {
+        for (let i = 0; i < n; i++) {
+          t += 33;
+          deliver({...frame(offset), t});
+        }
+      }
+    };
+    startSquats(screen);
+    squat(100_000); // the phone's clock has been running for a while
+    deliver({type: 'phone-left'}); // page reload: the phone disconnects...
+    deliver({...frame(0), t: 0}); // ...and reconnects with its clock back at zero
+    act(() => jest.advanceTimersByTime(200));
+    fireEvent.press(screen.getByTestId('pick-squat'));
+    squat(0);
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByText('1')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('survives a frame message that arrives split in two pieces (seen on Vega)', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    deliver({type: 'session', code: 'KH7VET'});
+    const whole = JSON.stringify({...frame(0), t: 0});
+    const cut = whole.indexOf('],[') + 1;
+    act(() => FakeSocket.last.onmessage?.({data: whole.slice(0, cut)}));
+    act(() => FakeSocket.last.onmessage?.({data: whole.slice(cut)}));
+    act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByTestId('pick-squat')).toBeTruthy(); // the joined frame got through
     jest.useRealTimers();
   });
 });
