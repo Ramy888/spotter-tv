@@ -53,7 +53,7 @@
 </main>
 
 <script type="module">
-import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
 const SEND_FPS = 15;           // enough for rep counting; keeps relay traffic and cost down
 const PING_EVERY_MS = 1000;    // only some frames carry a timestamp for round-trip measurement
@@ -168,6 +168,123 @@ async function start(joinCode) {
   requestAnimationFrame(loop);
 }
 
+// Broadcast-style skeleton: body-weighted limbs with a soft glow, a translucent torso, clean
+// joints, one head ring instead of face dots, joints fading with low confidence, and a live
+// knee-angle arc. Widths are in canvas pixels, scaled to the video size.
+const ACCENT = "#C8FF3D";
+const CUE = "#FFB547";
+const LIMBS = [ // [from, to, width]
+  [11, 13, 9], [13, 15, 7], [12, 14, 9], [14, 16, 7], // arms
+  [23, 25, 15], [25, 27, 12], [24, 26, 15], [26, 28, 12], // legs
+];
+const JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+const BIG_JOINTS = new Set([23, 24, 25, 26]);
+
+const confidence = (p) => Math.min(1, Math.max(0.12, ((p.visibility ?? 0) - 0.3) / 0.5));
+
+function angleAt(a, b, c) {
+  const ab = Math.atan2(a.y - b.y, a.x - b.x);
+  const cb = Math.atan2(c.y - b.y, c.x - b.x);
+  let d = Math.abs(ab - cb) * 180 / Math.PI;
+  return d > 180 ? 360 - d : d;
+}
+
+function drawSkeleton(ctx, pose, w, h, mirrored) {
+  const s = w / 400;
+  const P = pose.map((p) => ({ x: p.x * w, y: p.y * h, a: confidence(p) }));
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  // Torso as one translucent shape.
+  const torso = [P[11], P[12], P[24], P[23]];
+  ctx.globalAlpha = Math.min(...torso.map((p) => p.a));
+  ctx.beginPath();
+  torso.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+  ctx.closePath();
+  ctx.fillStyle = "rgba(200, 255, 61, 0.14)";
+  ctx.fill();
+  ctx.lineWidth = 3 * s;
+  ctx.strokeStyle = ACCENT;
+  ctx.stroke();
+
+  // Limbs: a wide faint glow pass, then the solid stroke.
+  for (const [i, j, width] of LIMBS) {
+    const alpha = Math.min(P[i].a, P[j].a);
+    for (const [extra, op] of [[14, 0.22], [0, 1]]) {
+      ctx.globalAlpha = alpha * op;
+      ctx.lineWidth = (width + extra) * s;
+      ctx.beginPath();
+      ctx.moveTo(P[i].x, P[i].y);
+      ctx.lineTo(P[j].x, P[j].y);
+      ctx.stroke();
+    }
+  }
+
+  // Head ring sized from the ears, plus the neck.
+  const head = P[0];
+  const r = Math.max(14 * s, Math.hypot(P[7].x - P[8].x, P[7].y - P[8].y) * 0.75);
+  const neck = { x: (P[11].x + P[12].x) / 2, y: (P[11].y + P[12].y) / 2 };
+  ctx.globalAlpha = head.a;
+  ctx.lineWidth = 4 * s;
+  ctx.beginPath();
+  ctx.arc(head.x, head.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 8 * s;
+  ctx.beginPath();
+  ctx.moveTo(head.x, head.y + r);
+  ctx.lineTo(neck.x, neck.y);
+  ctx.stroke();
+
+  // Joints: dark centre, accent ring.
+  for (const k of JOINTS) {
+    ctx.globalAlpha = P[k].a;
+    ctx.beginPath();
+    ctx.arc(P[k].x, P[k].y, (BIG_JOINTS.has(k) ? 9 : 7) * s, 0, Math.PI * 2);
+    ctx.fillStyle = "#0A0B10";
+    ctx.fill();
+    ctx.lineWidth = 3 * s;
+    ctx.stroke();
+  }
+
+  // Knee-angle arc on the more bent, clearly visible knee.
+  const legs = [[23, 25, 27], [24, 26, 28]].filter(([h2, k, a]) => Math.min(P[h2].a, P[k].a, P[a].a) > 0.6);
+  const bent = legs.map(([h2, k, a]) => ({ k, h2, a, deg: angleAt(P[h2], P[k], P[a]) })).sort((x, y) => x.deg - y.deg)[0];
+  ctx.globalAlpha = 1;
+  if (bent && bent.deg < 165) {
+    const knee = P[bent.k];
+    const a1 = Math.atan2(P[bent.h2].y - knee.y, P[bent.h2].x - knee.x);
+    const a2 = Math.atan2(P[bent.a].y - knee.y, P[bent.a].x - knee.x);
+    let start = a1, end = a2;
+    if (((end - start + Math.PI * 3) % (Math.PI * 2)) - Math.PI < 0) [start, end] = [end, start];
+    ctx.strokeStyle = CUE;
+    ctx.lineWidth = 5 * s;
+    ctx.beginPath();
+    ctx.arc(knee.x, knee.y, 30 * s, start, end);
+    ctx.stroke();
+
+    // Label: drawn un-mirrored so the number reads correctly on the front camera.
+    const label = `${Math.round(bent.deg)}°`;
+    const lx = knee.x + (mirrored ? -1 : 1) * 46 * s;
+    ctx.save();
+    if (mirrored) {
+      ctx.translate(lx, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-lx, 0);
+    }
+    ctx.font = `900 ${20 * s}px Archivo, system-ui, sans-serif`;
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = CUE;
+    ctx.beginPath();
+    ctx.roundRect(lx - 8 * s, knee.y - 16 * s, tw + 16 * s, 32 * s, 8 * s);
+    ctx.fill();
+    ctx.fillStyle = "#1A1206";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, lx, knee.y);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function loop() {
   const now = performance.now();
   const ctx = $("overlay").getContext("2d");
@@ -175,7 +292,7 @@ function loop() {
   ctx.clearRect(0, 0, $("overlay").width, $("overlay").height);
 
   if (pose) {
-    new DrawingUtils(ctx).drawConnectors(pose, PoseLandmarker.POSE_CONNECTIONS, { color: "#44ccff", lineWidth: 4 });
+    drawSkeleton(ctx, pose, $("overlay").width, $("overlay").height, facing === "user");
     if (ws?.readyState === WebSocket.OPEN && now - lastSent >= 1000 / SEND_FPS) {
       // Keypoints only: video never leaves the phone.
       // t = capture time, so the TV times reps by when they happened, not when frames arrived.
