@@ -48,7 +48,7 @@ export const PickScreen = ({
           onPress={() => onPick(def)}
           preferred={i === 0}
           testID={`pick-${def.id}`}
-          style={styles.card}>
+          style={[styles.card, i === EXERCISES.length - 1 && styles.lastCard]}>
           {(focused) => (
             <View style={styles.cardInner}>
               <Text style={[styles.muscles, focused && styles.musclesFocused]}>{MUSCLES[def.id]}</Text>
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
   headline: {color: color.text, fontFamily: font.display, fontSize: 72, lineHeight: 70, marginTop: 28},
   cards: {flex: 1, flexDirection: 'row', marginTop: 32, marginBottom: 28},
   card: {flex: 1, marginRight: 24, borderRadius: 24, padding: 30},
+  lastCard: {marginRight: 0}, // the row ends flush with the header above it
   cardInner: {flex: 1, justifyContent: 'space-between'},
   muscles: {color: color.textSecondary, fontFamily: font.bodyMedium, fontSize: 17, textAlign: 'right'},
   musclesFocused: {color: color.accent},

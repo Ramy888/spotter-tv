@@ -3,8 +3,8 @@ import {Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-nat
 import {color, font} from './theme';
 
 // A D-pad-friendly button. A TV has no pointer, so the focused one must be unmistakable from 3 m:
-// volt border and tinted fill. Cards (`children` replaces the label) also lift slightly; plain
-// buttons don't, because a lifted button next to an unlifted one reads as misaligned.
+// volt border and tinted fill. Nothing moves: a lifted item next to its neighbours reads as
+// misaligned. `children` replaces the label for card-style buttons.
 export const FocusButton = ({
   label,
   detail,
@@ -34,7 +34,7 @@ export const FocusButton = ({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       hasTVPreferredFocus={preferred}
-      style={[pill ? styles.pill : styles.button, focused && styles.focused, focused && children && styles.lift, style]}>
+      style={[pill ? styles.pill : styles.button, focused && styles.focused, style]}>
       {children ? (
         children(focused)
       ) : (
@@ -65,7 +65,6 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface,
   },
   focused: {borderColor: color.accent, backgroundColor: color.accentSurface},
-  lift: {transform: [{translateY: -6}]},
   content: {alignItems: 'center'},
   label: {color: color.textIdle, fontSize: 26, fontFamily: font.bodyBold},
   pillLabel: {color: color.textIdle, fontSize: 20, fontFamily: font.bodyBold},
