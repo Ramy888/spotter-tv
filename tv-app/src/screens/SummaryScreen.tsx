@@ -48,7 +48,7 @@ export const SummaryScreen = ({
       <View style={styles.coachCard}>
         <View style={styles.coachHeader}>
           <View style={styles.coachMark} />
-          <Text style={styles.coachLabel}>{aiCoached ? 'AI COACH' : 'COACH'}</Text>
+          <Text style={styles.coachLabel}>COACH</Text>
           {aiCoached ? (
             <Text style={styles.aiLabel} testID="ai-label">
               ✨ AI coach
