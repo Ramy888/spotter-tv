@@ -5,26 +5,27 @@ import { NAME_TEMPLATES, isSpokenName, nameClipKey, parseNameClipPath, phraseFor
 // Same vectors as tv-app/test/profiles.spec.ts (spokenName), so the TV and the server agree.
 test("speaks real Latin names only", () => {
   assert.equal(isSpokenName("Ramy"), true);
-  assert.equal(isSpokenName("Mary-Jo O'Neil"), true);
+  assert.equal(isSpokenName("O'Neil"), true);
+  assert.equal(isSpokenName("Mary-Jo"), true);
   assert.equal(isSpokenName("Player 2"), false);
   assert.equal(isSpokenName("رامي"), false);
   assert.equal(isSpokenName("R2D2"), false);
   assert.equal(isSpokenName("Abcdefghijklmnopq"), false); // 17 letters
-  assert.equal(isSpokenName("Mary Jane Watsons"), true); // 15 letters: spaces don't count
-  assert.equal(isSpokenName("Abcdefgh Ijklmnopq"), false); // 17 letters
+  assert.equal(isSpokenName("Mo Salah"), false); // no spaces in a name
   assert.equal(isSpokenName(undefined), false);
 });
 
 test("phrases come only from the fixed templates", () => {
   assert.equal(phraseFor("start", "Ramy"), "Let's go, Ramy!");
   for (const template of Object.keys(NAME_TEMPLATES)) assert.match(phraseFor(template, "Mo"), /Mo/);
-  assert.equal(nameClipKey("last", "Mo Salah"), "NAMECLIP#last#Mo Salah");
+  assert.equal(nameClipKey("last", "Salah"), "NAMECLIP#last#Salah");
   assert.equal(quotaKey(new Date("2026-10-01T23:00:00Z")), "QUOTA#polly#2026-10-01");
 });
 
 test("parses a name clip path, decoding the name", () => {
   assert.deepEqual(parseNameClipPath("/audio/name/start/Ramy.mp3"), { template: "start", name: "Ramy" });
-  assert.deepEqual(parseNameClipPath("/audio/name/last/Mo%20Salah.mp3"), { template: "last", name: "Mo Salah" });
+  assert.deepEqual(parseNameClipPath("/audio/name/last/Mary-Jo.mp3"), { template: "last", name: "Mary-Jo" });
+  assert.equal(parseNameClipPath("/audio/name/last/Mo%20Salah.mp3"), null); // no spaces in a name
   assert.deepEqual(parseNameClipPath("/audio/name/finish/O'Neil.mp3"), { template: "finish", name: "O'Neil" });
 });
 

@@ -495,10 +495,10 @@ describe('App', () => {
     fireEvent.press(screen.getByTestId('who-add'));
     await flushAsync();
     expect(namePrompts()).toEqual([true]);
-    deliver({type: 'name', name: 'mo salah'});
+    deliver({type: 'name', name: 'salah'});
     await flushAsync();
     expect(namePrompts()).toEqual([true, false]);
-    expect(screen.getByTestId('player')).toHaveTextContent(/Mo Salah · switch/);
+    expect(screen.getByTestId('player')).toHaveTextContent(/Salah · switch/);
     jest.useRealTimers();
   });
 
@@ -525,6 +525,25 @@ describe('App', () => {
     fireEvent.press(screen.getByTestId('name-cancel'));
     await flushAsync();
     expect(namePrompts()).toEqual([true, false]);
+    jest.useRealTimers();
+  });
+
+  it('drops a typed space and says no spaces are allowed', async () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    await flushAsync();
+    toPicker();
+    fireEvent.press(screen.getByTestId('player'));
+    await flushAsync();
+    fireEvent.press(screen.getByTestId('rename-p1'));
+    expect(screen.queryByTestId('name-error')).toBeNull();
+    fireEvent.changeText(screen.getByTestId('name-input'), 'ra my');
+    expect(screen.getByTestId('name-input').props.value).toBe('ramy');
+    expect(screen.getByTestId('name-error')).toHaveTextContent('No spaces allowed');
+    fireEvent.changeText(screen.getByTestId('name-input'), 'ramyy');
+    expect(screen.getByTestId('name-error')).toBeTruthy(); // stays long enough to be read
+    act(() => jest.advanceTimersByTime(2600));
+    expect(screen.queryByTestId('name-error')).toBeNull();
     jest.useRealTimers();
   });
 

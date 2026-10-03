@@ -60,7 +60,7 @@ test("parseMessage accepts a status update with a valid rep count and exercise o
 test("parseMessage accepts a voice-name request only for a speakable name", () => {
   assert.deepEqual(parseMessage('{"action":"voice-name","name":"Ramy"}'), { type: "voice-name", name: "Ramy" });
   assert.equal(parseMessage('{"action":"voice-name","name":"Player 1"}'), null);
-  assert.equal(parseMessage('{"action":"voice-name","name":"Say something very rude"}'), null); // 20 letters
+  assert.equal(parseMessage('{"action":"voice-name","name":"Say something very rude"}'), null); // spaces
   assert.equal(parseMessage('{"action":"voice-name"}'), null);
 });
 
@@ -71,12 +71,11 @@ test("parseMessage accepts the TV's name prompt (open or closed) and nothing els
 });
 
 test("parseMessage accepts a name typed on the phone, tidied, in any script", () => {
-  assert.deepEqual(parseMessage('{"action":"name","name":"  Mo   Salah "}'), { type: "name", name: "Mo Salah" });
+  assert.deepEqual(parseMessage('{"action":"name","name":"  Salah "}'), { type: "name", name: "Salah" });
+  assert.equal(parseMessage('{"action":"name","name":"Mo Salah"}'), null); // no spaces in a name
   assert.deepEqual(parseMessage(JSON.stringify({ action: "name", name: "رامي" })), { type: "name", name: "رامي" });
   assert.equal(parseMessage('{"action":"name","name":"   "}'), null);
   assert.equal(parseMessage('{"action":"name","name":"Abcdefghijklmnopq"}'), null); // 17 letters
-  assert.equal(parseMessage('{"action":"name","name":"Abcdefgh Ijklmnopq"}'), null); // 17 letters
-  assert.deepEqual(parseMessage('{"action":"name","name":"Mary Jane Watsons"}'), { type: "name", name: "Mary Jane Watsons" });
   assert.equal(parseMessage('{"action":"name","name":"a\\u0007b"}'), null);
   assert.equal(parseMessage('{"action":"name","name":42}'), null);
 });

@@ -1,4 +1,4 @@
-import {KeyValueStore, MAX_PROFILES, ProfileStore, cleanName, limitName, spokenName} from '../src/profiles';
+import {KeyValueStore, MAX_PROFILES, ProfileStore, cleanName, spokenName, withoutSpaces} from '../src/profiles';
 
 class MemoryStore implements KeyValueStore {
   data = new Map<string, string>();
@@ -97,29 +97,30 @@ describe('ProfileStore', () => {
 
 describe('names', () => {
   it('tidies what was typed', () => {
-    expect(cleanName('  Mo   Salah ')).toBe('Mo Salah');
+    expect(cleanName('  Salah ')).toBe('Salah');
+    expect(cleanName('mo salah')).toBe('Mosalah'); // spaces never get into a name
     expect(cleanName('A\u0007b')).toBe('Ab');
     expect(cleanName('Abcdefghijklmnopqrstuvwxyz')).toBe('Abcdefghijklmnop');
-    // The 16-character cap counts letters, not spaces.
-    expect(cleanName('Mary Jane Watsons')).toBe('Mary Jane Watsons'); // 15 letters, 17 characters
-    expect(cleanName('Abcdefgh Ijklmnopqrs')).toBe('Abcdefgh Ijklmnop');
     expect(cleanName(' \n ')).toBeNull();
-    expect(cleanName('mary-jo o\'neil')).toBe("Mary-Jo O'Neil"); // typed without shift
+    expect(cleanName('mary-jo')).toBe('Mary-Jo'); // typed without shift
+    expect(cleanName("o'neil")).toBe("O'Neil");
     expect(cleanName('McKenzie')).toBe('McKenzie'); // typed with capitals: kept
   });
 
   it('speaks real Latin names only', () => {
     expect(spokenName('Ramy')).toBe('Ramy');
-    expect(spokenName("Mary-Jo O'Neil")).toBe("Mary-Jo O'Neil");
+    expect(spokenName("O'Neil")).toBe("O'Neil");
+    expect(spokenName('Mary-Jo')).toBe('Mary-Jo');
     expect(spokenName('Player 2')).toBeNull(); // a placeholder, not a name
     expect(spokenName('رامي')).toBeNull(); // shown on screen, not spoken by the English voice
     expect(spokenName('R2D2')).toBeNull();
-    expect(spokenName('Mary Jane Watsons')).toBe('Mary Jane Watsons'); // spaces don't count
-    expect(spokenName('Abcdefgh Ijklmnopq')).toBeNull(); // 17 letters
+    expect(spokenName('Mo Salah')).toBeNull(); // no spaces in a name
+    expect(spokenName('Abcdefghijklmnopq')).toBeNull(); // 17 characters
   });
 
-  it('stops typing at 16 letters, wherever the spaces are', () => {
-    expect(limitName('abcdefgh ijklmnopqrs')).toBe('abcdefgh ijklmnop');
-    expect(limitName('mary jane watsons ')).toBe('mary jane watsons '); // still typing: keep the space
+  it('drops spaces from what is being typed and says so', () => {
+    expect(withoutSpaces('ramy')).toEqual({text: 'ramy', hadSpace: false});
+    expect(withoutSpaces('ramy ')).toEqual({text: 'ramy', hadSpace: true});
+    expect(withoutSpaces('mo sa\tlah')).toEqual({text: 'mosalah', hadSpace: true});
   });
 });

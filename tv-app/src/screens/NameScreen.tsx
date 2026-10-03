@@ -1,9 +1,11 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
 import {FocusButton} from '../FocusButton';
-import {MAX_NAME_CHARS, cleanName, isRealName, limitName} from '../profiles';
+import {MAX_NAME_LENGTH, cleanName, isRealName, withoutSpaces} from '../profiles';
 import {color, font} from '../theme';
 import {Wordmark, screen} from './shared';
+
+const ERROR_SHOW_MS = 2500;
 
 // Typing a player's name with the TV's on-screen keyboard (OK on the field opens it).
 export const NameScreen = ({
@@ -19,6 +21,22 @@ export const NameScreen = ({
 }) => {
   const [text, setText] = useState(isRealName(current) ? current : '');
   const [focused, setFocused] = useState(false);
+  const [spaceTyped, setSpaceTyped] = useState(0); // when a space was last typed; 0 = not showing
+  // A name is one word: a typed space is dropped and the field says why, for long enough to read.
+  const type = (raw: string) => {
+    const {text: typed, hadSpace} = withoutSpaces(raw);
+    setText(typed);
+    if (hadSpace) {
+      setSpaceTyped(Date.now());
+    }
+  };
+  useEffect(() => {
+    if (!spaceTyped) {
+      return;
+    }
+    const timer = setTimeout(() => setSpaceTyped(0), ERROR_SHOW_MS);
+    return () => clearTimeout(timer);
+  }, [spaceTyped]);
   const name = cleanName(text);
   const save = () => (name ? onSave(name) : undefined);
   return (
@@ -32,19 +50,24 @@ export const NameScreen = ({
       <TextInput
         testID="name-input"
         value={text}
-        onChangeText={(t) => setText(limitName(t))}
+        onChangeText={type}
         onSubmitEditing={save}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         hasTVPreferredFocus
-        maxLength={MAX_NAME_CHARS}
+        maxLength={MAX_NAME_LENGTH}
         placeholder="Type your name"
         placeholderTextColor={color.textSecondary}
         autoCapitalize="words"
         autoCorrect={false}
         returnKeyType="done"
-        style={[styles.input, focused && styles.inputFocused]}
+        style={[styles.input, focused && styles.inputFocused, spaceTyped > 0 && styles.inputError]}
       />
+      {spaceTyped > 0 ? (
+        <Text style={styles.error} testID="name-error" accessibilityLiveRegion="polite">
+          No spaces allowed
+        </Text>
+      ) : null}
       <View style={styles.buttons}>
         <FocusButton label="Save" onPress={save} testID="name-save" style={styles.save} />
         <View style={styles.gap} />
@@ -94,6 +117,8 @@ const styles = StyleSheet.create({
     borderColor: color.accent,
     backgroundColor: color.accentSurface,
   },
+  inputError: {borderColor: color.cue},
+  error: {color: color.cue, fontFamily: font.bodyBold, fontSize: 22, marginTop: 12},
   // Save fills the space under the field so Down from the field lands on it, not on Cancel.
   buttons: {flexDirection: 'row', width: 640, marginTop: 32},
   save: {flex: 1},

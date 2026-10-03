@@ -95,10 +95,10 @@ describe('VoicePlayer', () => {
     it('plays the name clip from the server, encoding the name', async () => {
       const fake = new FakePlayer();
       const v = new VoicePlayer('tv', () => {}, undefined, () => fake as never);
-      v.voiceName = 'Mo Salah';
+      v.voiceName = "O'Neil";
       v.say(['name-start']);
       await flush();
-      expect(fake.played).toEqual(['name/start/Mo%20Salah.mp3']);
+      expect(fake.played).toEqual(["name/start/O'Neil.mp3"]);
     });
 
     it('plays the plain clip instead when the name clip fails, and stays on the TV', async () => {

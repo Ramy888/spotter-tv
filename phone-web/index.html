@@ -59,6 +59,8 @@
   #nameSheet h2 { margin: 0; font-size: 34px; line-height: 1; }
   #nameInput { letter-spacing: 0; text-transform: none; text-align: left; font-size: 28px; }
   #nameInput:focus { outline: none; border-color: var(--accent); }
+  #nameInput.error { border-color: var(--cue); }
+  .name-error { margin: -4px 0 0; color: var(--cue); font-weight: 700; font-size: 15px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -115,7 +117,8 @@
   <form id="nameForm" autocomplete="off">
     <h2 class="display">What's your name?</h2>
     <p class="copy" style="font-size: 16px">Your TV is asking. The coach will cheer you on by name. It's saved on your TV only.</p>
-    <input id="nameInput" maxlength="32" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Your name" aria-label="Your name">
+    <input id="nameInput" maxlength="16" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Your name" aria-label="Your name" aria-describedby="nameError">
+    <p id="nameError" class="name-error" role="alert" hidden>No spaces allowed</p>
     <button class="primary" type="submit">Send to TV</button>
   </form>
 </div>
@@ -213,16 +216,25 @@ function showNameSheet(open) {
   else $("nameInput").blur();
 }
 
-// At most 16 letters, like the TV; spaces don't count.
+// A name is one word, like on the TV: a typed space is dropped and the field says why,
+// for long enough to read.
+let nameErrorTimer;
+function showNameError(on) {
+  $("nameError").hidden = !on;
+  $("nameInput").classList.toggle("error", on);
+}
 $("nameInput").addEventListener("input", (e) => {
-  let letters = 0;
-  const kept = [...e.target.value].filter((ch) => /\s/.test(ch) || ++letters <= 16).join("");
-  if (kept !== e.target.value) e.target.value = kept;
+  const kept = e.target.value.replace(/\s/g, "");
+  if (kept === e.target.value) return;
+  e.target.value = kept;
+  showNameError(true);
+  clearTimeout(nameErrorTimer);
+  nameErrorTimer = setTimeout(() => showNameError(false), 2500);
 });
 
 $("nameForm").addEventListener("submit", (e) => {
   e.preventDefault();
-  const name = $("nameInput").value.replace(/\s+/g, " ").trim();
+  const name = $("nameInput").value.replace(/\s/g, "");
   if (!name || ws?.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({ action: "name", name }));
   $("nameInput").value = "";

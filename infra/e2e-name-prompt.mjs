@@ -37,9 +37,10 @@ tv.ws.send(JSON.stringify({ action: "name-prompt", open: true }));
 const prompt = await waitFor(phone.inbox, (m) => m.type === "name-prompt", "prompt on phone");
 check("phone gets the TV's name prompt", prompt.open === true, JSON.stringify(prompt));
 
-phone.ws.send(JSON.stringify({ action: "name", name: "  Mo   Salah " }));
+phone.ws.send(JSON.stringify({ action: "name", name: "Mo Salah" })); // dropped: no spaces in a name
+phone.ws.send(JSON.stringify({ action: "name", name: "  Salah " }));
 const named = await waitFor(tv.inbox, (m) => m.type === "name", "name on TV");
-check("TV gets the name, tidied", named.name === "Mo Salah", JSON.stringify(named));
+check("TV gets the name, trimmed (and not the one with a space)", named.name === "Salah", JSON.stringify(named));
 
 phone.ws.send(JSON.stringify({ action: "name", name: "x".repeat(40) }));
 tv.ws.send(JSON.stringify({ action: "name-prompt", open: false }));

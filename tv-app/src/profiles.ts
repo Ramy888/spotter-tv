@@ -17,44 +17,33 @@ export type Progress = Partial<Record<ExerciseId, ExerciseProgress>>;
 export type Profile = {id: string; name: string};
 
 export const MAX_PROFILES = 4;
-export const MAX_NAME_LENGTH = 16; // letters; spaces don't count
-export const MAX_NAME_CHARS = 2 * MAX_NAME_LENGTH; // hard cap on the whole text, spaces included
+export const MAX_NAME_LENGTH = 16;
 
-const nameLetters = (name: string) => [...name.replace(/\s/g, '')].length;
-
-// Typed text cut off after MAX_NAME_LENGTH letters (spaces are free), for the text field.
-export function limitName(raw: string): string {
-  let letters = 0;
-  let out = '';
-  for (const ch of raw) {
-    if (!/\s/.test(ch) && ++letters > MAX_NAME_LENGTH) {
-      break;
-    }
-    out += ch;
-  }
-  return out.slice(0, MAX_NAME_CHARS);
+// A name is one word: spaces are never allowed. Returns the text without them, and whether
+// there were any, so the field can say "No spaces allowed".
+export function withoutSpaces(raw: string): {text: string; hadSpace: boolean} {
+  const text = raw.replace(/\s/g, '');
+  return {text, hadSpace: text !== raw};
 }
 
-// What's left of a typed name after tidying: trimmed, single spaces, no control characters,
-// at most MAX_NAME_LENGTH letters (spaces don't count), and "ramy" becomes "Ramy" (a remote keyboard often has no
-// shift; a name typed with capitals is kept as typed). Null if nothing usable is left.
+// What's left of a typed name after tidying: no spaces, no control characters, at most
+// MAX_NAME_LENGTH characters, and "ramy" becomes "Ramy" (a remote keyboard often has no shift;
+// a name typed with capitals is kept as typed). Null if nothing usable is left.
 export function cleanName(raw: string): string | null {
-  const name = raw
+  const name = withoutSpaces(raw)
     // eslint-disable-next-line no-control-regex -- stripping control characters is the point
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const capped = limitName(name).trim();
-  if (!capped) {
+    .text.replace(/[\u0000-\u001f\u007f]/g, '')
+    .slice(0, MAX_NAME_LENGTH);
+  if (!name) {
     return null;
   }
-  return capped === capped.toLowerCase() ? capped.replace(/(^|[ '-])(\S)/g, (_, sep, c) => sep + c.toUpperCase()) : capped;
+  return name === name.toLowerCase() ? name.replace(/(^|['-])(\S)/g, (_, sep, c) => sep + c.toUpperCase()) : name;
 }
 
 const DEFAULT_NAME = /^Player \d+$/;
 // Latin letters only: the coach voice is English and the clips are made per name on the server,
 // which accepts exactly this shape (infra/site/handler.mjs).
-const SPOKEN_NAME = /^[A-Za-z][A-Za-z' -]*$/;
+const SPOKEN_NAME = /^[A-Za-z][A-Za-z'-]{0,15}$/;
 
 // False for the "Player N" placeholder a new player starts with.
 export const isRealName = (name: string) => !DEFAULT_NAME.test(name);
@@ -62,8 +51,7 @@ export const isRealName = (name: string) => !DEFAULT_NAME.test(name);
 // The name the coach says out loud, or null when it should not use one
 // ("Player 2" is a placeholder, not a name; other scripts are shown but not spoken).
 export function spokenName(name: string): string | null {
-  const fits = nameLetters(name) <= MAX_NAME_LENGTH && name.length <= MAX_NAME_CHARS;
-  return isRealName(name) && fits && SPOKEN_NAME.test(name) ? name : null;
+  return isRealName(name) && SPOKEN_NAME.test(name) ? name : null;
 }
 const KEY_PROFILES = 'spotter:v1:profiles';
 const keyProgress = (id: string) => `spotter:v1:progress:${id}`;
