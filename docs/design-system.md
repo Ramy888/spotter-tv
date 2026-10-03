@@ -1,4 +1,4 @@
-# Spotter design system
+# Spotter design system: "Arena"
 
 Spotter has two surfaces that must feel like one product:
 
@@ -7,130 +7,149 @@ Spotter has two surfaces that must feel like one product:
 | **TV app** | `tv-app/` (Vega OS, React Native) | 2.5–3 m, often mid-exercise | Fire TV remote (D-pad + OK) |
 | **Phone camera page** | `phone-web/index.html` | arm's length, briefly | Touch |
 
-The TV is the coach and does the talking. The phone is a camera you set down and forget, so its UI is minimal.
+The TV is the coach: it counts, cues, celebrates and talks. The phone is a camera you lean against something and forget, so its UI is minimal.
 
-Values below are taken from the code as of 2026-10-01. If you change a value, change it here too.
+The look is **Arena**: a near-black stage, one electric volt accent for energy and focus, amber for the coach's voice, and tall condensed type, like a scoreboard.
+
+Values come from the code as of 2026-10-03: `tv-app/src/theme.ts` and the `:root` variables in `phone-web/index.html`. If you change a value, change it here too.
 
 ---
 
 ## 1. Principles
 
-1. **Readable from the floor.** The most important information on each screen (rep count, cue, pairing code) must be readable from 3 m, mid-squat, without glasses. If in doubt, make it bigger and remove something.
-2. **One focus, always visible.** On TV, exactly one element is focused, and the focus is unmistakable (§5). Every screen gives a focus target on arrival (`hasTVPreferredFocus`).
-3. **Coach, don't scold.** Cues are short imperative phrases ("Go deeper"), shown briefly, then gone. Never shame. A rep that doesn't count simply doesn't increment.
-4. **Dark by default.** Workouts happen in living rooms and the TV is the brightest thing in the room. Use a near-black background, and keep color for meaning.
-5. **Privacy is visible.** The phone sends body keypoints, never video. Say so in copy wherever it matters (pairing, README, demo).
+1. **Readable from the floor.** The rep count, the cue and the pairing code must be readable from 3 m, mid-squat. If in doubt, make it bigger and remove something.
+2. **One focus, always visible.** On TV exactly one element is focused, shown by a volt border and fill (§5). Every screen sets where focus lands (`hasTVPreferredFocus`).
+3. **Coach, don't scold.** Cues are short instructions, shown briefly. A rep that doesn't count simply doesn't count; the TV never shows red.
+4. **Color means something.** Volt = you, progress, interactive. Amber = the coach is talking. Nothing is colored for decoration.
+5. **Privacy is visible.** The phone sends body keypoints, never video. Profiles are saved on the TV, with no account. Say so where it matters ("Saved on this TV · no account").
 
 ---
 
 ## 2. Color
 
-One palette, shared by both surfaces. Contrast ratios are against the background `#0b0b0f` (WCAG 2.x).
+One palette for both surfaces. Contrast is WCAG 2.x against `ground` unless stated.
 
-| Token | Hex | Contrast | Use |
+| Token (TV / phone CSS) | Hex | Contrast | Use |
 |---|---|---|---|
-| `bg` | `#0b0b0f` | — | App and page background |
-| `surface` | `#15151c` | — | Buttons, inputs, camera frame |
-| `surface-raised` | `#24242d` | — | Secondary buttons (phone), idle button border (TV) |
-| `surface-focus` | `#1d2a33` | — | Background of the focused TV button |
-| `border-input` | `#33333d` | — | Phone code input border |
-| `text` | `#ffffff` | 19.6 : 1 | Rep count, pairing code, headings, focused label |
-| `text-phone` | `#f2f2f5` | 17.6 : 1 | Phone body text (slightly softer on small screens) |
-| `text-secondary` | `#aaaaaa` | 8.5 : 1 | Units ("squats"), sub-lines, instructions |
-| `text-idle` | `#cccccc` | 12.2 : 1 | Unfocused TV button labels |
-| `text-muted` | `#888888` | 5.5 : 1 | Button details |
-| `text-meta` | `#666666` | **3.4 : 1** | Frames/s line on TV. See the open issue below. |
-| `text-muted-phone` | `#9a9aa6` | 7.1 : 1 | Phone helper text and stats |
-| `accent` | `#44ccff` | 10.6 : 1 | Brand wordmark, focus ring, primary phone button, skeleton overlay |
-| `on-accent` | `#002233` | 8.9 : 1 on `accent` | Text on the primary phone button |
-| `cue` / `warn` | `#ffcc66` | 13.2 : 1 | Coaching cues, "Connecting…", phone warnings |
-| `bad` | `#ff6b6b` | 7.1 : 1 | Phone errors ("That code didn't work") |
-| `qr-dark` / `qr-light` | `#000000` / `#ffffff` | — | QR code only. Always black on white, never themed. |
+| `ground` / `--ground` | `#0A0B10` | — | Background everywhere |
+| `surface` / `--surface` | `#14161F` | — | Cards, buttons, stat tiles, inputs, phone sheet |
+| `raised` / `--raised` | `#1E2130` | — | Idle button border, unlit ring ticks, avatar |
+| `line` / `--line` | `#2A2E40` | — | Hairlines, pill and input borders |
+| `text` / `--text` | `#F4F5F7` | 18.0 : 1 | Counts, headings, focused labels |
+| `textSecondary` / `--muted` | `#A3A8B8` | 8.3 : 1 | Units, sub-lines, hints, stat labels |
+| `textIdle` | `#CFD3DC` | 13.1 : 1 | Unfocused TV button labels |
+| `accent` / `--accent` (volt) | `#C8FF3D` | 16.7 : 1 | Focus, lit ring ticks, wordmark mark, primary phone button, skeleton |
+| `accentSurface` / `--accent-surface` | `#1A2410` | — | Fill under a volt border (focused card); `text` on it is 14.8 : 1 |
+| `cue` / `--cue` (amber) | `#FFB547` | 11.2 : 1 | Coach cue pill, "NEXT TIME" card, input errors, phone warnings |
+| `cueSurface` | `#1F1A0E` | — | Fill under amber |
+| `onCue` / `--on-cue` | `#1A1206` | 10.5 : 1 on `cue` | Text on the amber cue pill |
+| `--bad` (phone only) | `#FF6B6B` | 7.1 : 1 | Phone errors ("That code didn't work") |
+| `qrDark` / `qrLight` | `#0A0B10` / `#FFFFFF` | — | QR code only. Always dark on white, never themed. |
 
 **Rules**
-- `accent` means *you are here / this is interactive*. Don't use it for decoration.
-- `cue` means *the coach is talking to you*. Every coaching cue uses it, and nothing else does on the workout screen.
-- `bad` exists only on the phone. The TV never shows red: a failed rep is silence, not an error.
-- **Open issue:** `text-meta` (`#666666`) is 3.4 : 1, which only passes for large text (24 px or more, as used now). If meta text ever gets smaller, switch to `#8a8a96` (5.8 : 1).
+- **Volt** means *you are here, this is yours, this is progress*: focus, lit ticks, the player's name on the summary, "AI coach". Never decoration.
+- **Amber** means *the coach is talking to you*: the cue pill, the "NEXT TIME" card, "No spaces allowed". On the workout screen nothing else is amber.
+- **Red** exists only on the phone. A failed rep on TV is silence, not an error.
+- Text on volt uses `ground` (16.7 : 1). Text on amber uses `onCue`.
 
 ---
 
 ## 3. Typography
 
-System fonts: Amazon Ember on Fire TV, `-apple-system` / Segoe UI on the phone. Weights used: 400, 600, 700 and 800 only.
+Two families, bundled on TV (`tv-app/assets/fonts/`, OFL; Vega needs the file name to match the family name) and loaded from Google Fonts on the phone:
 
-### TV type scale (density-independent pixels)
-
-| Role | Size / weight | Example |
+| Role | TV font | Phone |
 |---|---|---|
-| `display-rep` | 150 / 800, line height 170 | the rep count "7" |
-| `display-code` | 72 / 800, letter-spacing 10 | the pairing code "B3XCAK" |
-| `headline` | 56 / 800 | summary "7 squats done" |
-| `cue` | 44 / 700 | "Go deeper" |
-| `title` | 40 / 700, `accent` | "Spotter", "Squats" |
-| `unit` | 36 / 400 | "squats" under the count |
-| `status` | 36 / 400, `cue` | "Connecting…" |
-| `coach-next` | 32 / 700, `cue` | "Next time: 9 squats with the same form." |
-| `button` | 34 / 700 | "Squats", "Finish" |
-| `insight` | 28 / 400, `text-secondary`, centered | "Steady pace: 2.0 s per rep." |
-| `heading` | 32 / 700 | "Scan with your phone's camera" |
-| `body` | 24 / 400 | "or open the Spotter page and enter", meta line |
-| `caption` | 22 / 400 | placement hint, button detail |
+| Display: counts, headlines, names | `ArchivoCondensed-Black` | Archivo, width 75, weight 900 |
+| Display bold: stat values, coach headline | `ArchivoCondensed-ExtraBold` | Archivo 800 |
+| Body | `DMSans-Regular` | DM Sans 400 |
+| Body medium: labels, steps | `DMSans-Medium` | DM Sans 500 |
+| Body bold: buttons, eyebrows | `DMSans-Bold` | DM Sans 700 |
+
+Display text is uppercase ("WHAT ARE WE TRAINING TODAY?"). Body text is sentence case.
+
+### TV type scale
+
+Sizes are on the **1280 × 720 design canvas** (§4). A 1080p TV shows them at 1.5×.
+
+| Role | Canvas size / font | Example |
+|---|---|---|
+| `count-live` | 200 display, line height 190 | rep count during a workout |
+| `count-summary` | 160 display | "4" on the summary |
+| `headline-pair` | 84 display | "YOUR PHONE IS THE CAMERA." |
+| `headline` | 72 display | "WHAT ARE WE TRAINING TODAY?", "WHO'S TRAINING?" |
+| `unit-summary` | 52 display | "SQUATS" |
+| `exercise` | 50 display | "SQUATS" on the workout screen |
+| `card-name` | 46 display | picker cards |
+| `code` | 44 display, letter-spacing 10 | pairing code |
+| `name-input` | 44 display bold, line height 60 | name field |
+| `coach-headline` | 40 display bold | "4 squats done" |
+| `player-name` | 38 display | Who's training cards |
+| `tile-value` | 36 display bold | "2.0 s" |
+| `cue` | 30 display, on amber | "GO DEEPER" |
+| `next` | 30 display bold | "4 squats, every rep to full depth." |
+| `wordmark` | 30 display | "SPOTTER" |
+| `button` | 26 body bold | "Same again" |
+| `of-target` | 24 body | "of 5 target" |
+| `insight`, `error`, `phone-hint` | 22 body | coach insights, "No spaces allowed" |
+| `eyebrow` | 20 body bold, letter-spacing 3, volt | "NICE WORK, RAMY" |
+| `pill` | 20 body bold | "Ramy · switch" |
+| `small` | 18–19 body | status pills, footers, sub-lines |
+| `label` | 15 body medium, letter-spacing 2 | "PACE", "KNEE" |
 
 **Rules**
-- **Nothing on TV smaller than 22.** At 3 m, 22 is the floor for secondary text and 32 or more for anything the user must act on.
-- Numbers that change (reps) use one size and never reflow the layout. Reserve the space.
+- **Floor: 15 on the canvas** (22.5 at 1080p), and only for short uppercase labels. Anything the user must act on is 20 or more.
+- Changing numbers (reps, stats) never reflow the layout: their space is reserved.
 - Codes use wide letter-spacing and the unambiguous alphabet `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no 0/O, 1/I/L).
 
 ### Phone type scale (CSS px)
 
-| Role | Size / weight |
+| Role | Size |
 |---|---|
-| `title` | 28 / inherited (bold h1), `accent` |
-| `code-input` | 28 / 600, monospace, letter-spacing 6, uppercase |
-| `body` | 17 / 400, line height 1.4 |
-| `button` | 18 / 600 |
-| `stats` | 13 / 400, tabular numbers |
+| `h1` (start screen) | 64 display, line height 0.92 |
+| Sheet and panel headings | 30–34 display |
+| Live rep count | 56 display |
+| Code input | 30 display, letter-spacing 8 |
+| Name input | 28 display, no letter-spacing |
+| Primary button | 26 display, 72 px tall |
+| Body | 17 DM Sans, line height 1.45 |
+| Notes, stats | 13–15 |
 
 ---
 
-## 4. Spacing, shape and layout
+## 4. Layout, spacing and shape
 
-**Spacing steps:** `12 · 16 · 20 · 24 · 32 · 40 · 48`. Use these; don't invent new ones.
+**The Stage.** Every TV screen is laid out on a fixed **1280 × 720 canvas** (`tv-app/src/Stage.tsx`), scaled once to fit the TV. Layouts never reflow or clip, and the mockups map 1 : 1 to code.
 
-| Token | TV | Phone |
+| Token | TV (canvas) | Phone |
 |---|---|---|
-| Screen padding | 48 | 16 |
-| Gap between stacked elements | 12–32 | 16 |
-| Button padding | 28 vertical × 36 horizontal | 14 × 18 |
-| Corner radius | 20 (buttons) | 12 (inputs, buttons), 16 (camera frame) |
-| Border | 4 (TV buttons) | 2 (code input) |
+| Screen padding | 72 horizontal × 52 vertical | 24 |
+| Card | radius 24, padding 28–30 | sheet radius 24 (top corners) |
+| Button | radius 18, padding 18 × 40, border 4 | primary 72 tall, radius 20 |
+| Pill | radius 999, padding 12 × 24, border 3 | radius 999 |
+| Gaps | 14 · 18 · 24 · 32 · 40 · 56 | 10 · 12 · 14 · 28 |
 
-**TV layout**
-- Everything is centered in one column, except the pairing screen, which uses two columns (QR on the left, instructions on the right).
-- **Sizes come from the screen, not constants**, where it matters: the QR code is `min(55 % of height, 30 % of width)`. Fixed pixel sizes clipped the QR on the virtual device.
-- Keep content inside a 5 % margin on each edge so TVs that crop the picture don't cut anything off. The 48 padding covers this at 1080p. Check on a real device when one is available.
-- One row of options holds at most 3 buttons (minimum width 240), which still fits at 1.04× focus scale.
-
-**Phone layout**
-- Single column, maximum width 480, safe-area aware (`viewport-fit=cover`).
-- The camera frame is 3 : 4, preserving the body-in-view framing the user needs to see.
+**Rules**
+- Rows end flush with the header above them: the last card in a row has no right margin.
+- A button under a card is as wide as the card ("Edit name" on Who's training).
+- The default action under a text field fills the space below it ("Save"), so D-pad Down lands on it.
+- Keep content inside the 72 / 52 padding, clear of TV overscan.
 
 ---
 
 ## 5. Focus (TV)
 
-The remote has no pointer, so focus is the whole interaction model.
+The remote has no pointer, so focus is the whole interaction model. It is implemented once, in `tv-app/src/FocusButton.tsx`, and every focusable control uses it.
 
-| State | Border | Background | Label | Scale |
-|---|---|---|---|---|
-| Idle | 4 px `surface-raised` | `surface` | `text-idle` | 1.00 |
-| Focused | 4 px `accent` | `surface-focus` | `text` | 1.04 |
+| State | Border | Fill | Label |
+|---|---|---|---|
+| Idle | 4 px `raised` (pills: 3 px `line`) | `surface` | `textIdle` |
+| Focused | 4 px `accent` | `accentSurface` | `text` |
 
-- Implemented once in `tv-app/src/FocusButton.tsx`. Every focusable thing uses it.
-- On arrival at each screen, the most likely next action gets `hasTVPreferredFocus`: the first workout on the picker, **Finish** during a workout, **Same again** on the summary.
-- The border color changes, not just the scale. Scale alone is too subtle from 3 m.
-- The border is always 4 px in both states, so focus never shifts the layout.
+- **Nothing moves.** No scale and no lift: a focused card that grows next to its neighbors reads as misaligned. Focus is border plus fill only.
+- Borders are the same width in both states, so focus never shifts layout.
+- Cards can render their own content per state (`children(focused)`): the focused picker card turns its muscle label volt, and the focused player's avatar fills volt.
+- Where focus lands: the first exercise on the picker, the active player on Who's training, the name field on the name screen, **Finish** during a workout, **Same again** on the summary.
 
 ---
 
@@ -138,31 +157,42 @@ The remote has no pointer, so focus is the whole interaction model.
 
 | Component | File | Notes |
 |---|---|---|
-| `FocusButton` | `tv-app/src/FocusButton.tsx` | The only TV button. Label plus an optional detail line. |
-| `QrCode` | `tv-app/src/QrCode.tsx` | Drawn with `View`s (no SVG dependency), black on white, 4-module quiet zone. Encodes `PHONE_URL?code=XXXXXX`. |
-| Rep display | `tv-app/src/App.tsx` (active phase) | Title (exercise name), then count, unit, cue line (always reserved, a blank space when idle), meta line, and the **Finish** button. |
-| Summary | `tv-app/src/App.tsx` (summary phase) | Title, headline, up to 4 insights, the "next time" line in `cue`, then **Same again** (focused) and **New workout**. Stays on screen while the phone keeps sending. Text comes from `tv-app/src/coach.ts`. |
-| Pairing panel | `tv-app/src/App.tsx` (waiting phase) | QR, then "Scan with your phone's camera", "or open the Spotter page and enter", the code, and the placement hint. |
-| Camera stage | `phone-web/index.html` `#stage` | Video plus skeleton canvas, mirrored for the front camera. |
-| Status line | `phone-web/index.html` `#status` | One line, colored by state: `ok` → `accent`, `warn` → `cue`, `bad` → `bad`. |
+| `Stage` | `tv-app/src/Stage.tsx` | 1280 × 720 canvas, scaled to the screen |
+| `FocusButton` | `tv-app/src/FocusButton.tsx` | Button, pill (`pill`) or card (`children`) |
+| `TickRing` | `tv-app/src/TickRing.tsx` | 40 ticks drawn with rotated Views (no SVG on Vega). Lit ticks are volt and longer. New ticks light one by one, led by a white tick, within 450 ms per rep. Used around the count and around the pairing QR. |
+| `CelebrationBurst` / `CelebrationBadge` | `tv-app/src/Celebration.tsx` | Emoji rising beside the count plus a volt badge ("🔥 Clean streak ×5"). 1.5 s; only opacity and position animate, on the native driver. |
+| `QrCode` | `tv-app/src/QrCode.tsx` | Drawn with Views, dark on white, 4-module quiet zone |
+| `Wordmark`, `StatusPill`, `StatTile` | `tv-app/src/screens/shared.tsx` | `StatTile grow` shares a row's width |
+| Screens | `tv-app/src/screens/` | Pair, Pick, Who's training, Name, Workout, Summary |
+| Name sheet (phone) | `phone-web/index.html` `#nameSheet` | Bottom sheet with a volt top edge, shown while the TV asks for a name |
+| Skeleton overlay (phone) | `phone-web/index.html` `drawSkeleton` | Volt bones over a soft volt body fill, dark joint dots, amber knee arc |
+
+### Screens
+
+| Screen | Content |
+|---|---|
+| **Pair** | Wordmark, "No account. Nothing to install on your phone.", headline, 3 numbered steps, QR inside a tick ring, the code, status pill |
+| **Pick** | "WHAT ARE WE TRAINING TODAY?", 3 exercise cards (muscles, name, "Last time 4 · target 4"), pills "Ramy · switch" and "Coach voice: TV" |
+| **Who's training** | Up to 4 player cards (avatar initial, name, "Squats 4 · Lunges 6"), a "New player" card, "Edit name" under each player |
+| **Name** | "WHAT'S YOUR NAME?", the field, Save and Cancel (Skip for a new player), "Easier on your phone: it's asking for your name too." |
+| **Workout** | "Ramy · Set 1", exercise name, depth gauge, count in the tick ring, "of 5 target", cue pill, stat tiles (pace, streak, best depth), Finish |
+| **Summary** | "NICE WORK, RAMY", count, stat tiles, coach card ("COACH", plus "✨ AI coach" when rewritten by AI), amber "NEXT TIME" card, Same again and New workout |
 
 ---
 
-## 7. Coaching cues and copy
+## 7. Copy and voice
 
-Cues are defined once in `tv-app/src/exercises/types.ts` (`CUE_TEXT`).
+**On-screen cues** (`tv-app/src/exercises/types.ts`): "Go deeper", "Slow down", "Step back: full body in frame". Shown for 2.5 s in the amber pill, uppercase.
 
-| Cue | Text | When | On screen |
-|---|---|---|---|
-| `deeper` | **Go deeper** | Went past the dip angle, came back up without reaching depth. Not counted. | 2.5 s |
-| `slower` | **Slow down** | Counted, but under 1 s from the start of the dip to standing | 2.5 s |
-| `step-back` | **Step back: full body in frame** | The needed joints are below visibility 0.6 | 2.5 s, once per occurrence |
+**Spoken coach** (Amazon Polly, Matthew, neural; `voice/phrases.json`): 88 clips: counts 1–50, start, cues, praise, "Two more!", "Almost there!", streak, deepest, target and finish. A named player also gets 5 personal phrases ("Let's go, Ramy!", "That's it, Ramy!", "Ramy, go deeper.", "Last one, Ramy!", "Great work, Ramy!"). They're used at start, at finish, on the last rep, on the first "go deeper" and on every other praise, so the name stays special.
+
+**Names:** one word, up to 16 characters, no spaces ("No spaces allowed"). "ramy" is saved as "Ramy". Placeholders ("Player 2") are never spoken.
 
 **Copy rules**
-- Imperative, 1–3 words for cues, sentence case, no exclamation marks, no emoji.
+- Cues: imperative, 1–3 words, no exclamation marks. Spoken lines may cheer ("Let's go!").
 - Say what to do, not what went wrong ("Go deeper", not "Rep invalid").
-- Numbers carry their units ("15 frames/s", "2.5–3 m").
-- The product name is **Spotter**. Write "Fire TV" only when describing the platform, never as part of the product name.
+- Numbers carry units ("2.0 s", "15 frames/s", "3 m").
+- The product is **Spotter**. "Fire TV" names the platform only.
 
 ---
 
@@ -170,20 +200,22 @@ Cues are defined once in `tv-app/src/exercises/types.ts` (`CUE_TEXT`).
 
 | What | Value | Why |
 |---|---|---|
-| Screen refresh during a workout | at most every 100 ms | Counting runs on every frame; redrawing on every frame backed up the message queue on Vega |
-| Cue visible | 2.5 s | Long enough to read mid-movement, short enough not to linger |
-| Phone considered gone | 3 s without frames | Back to the pairing screen, keeping the session and code |
-| Focus change | instant scale to 1.04 | No animation; it stays responsive on low-end TV hardware |
-
-No decorative animation. Motion on screen is the user's own body, mirrored as the rep count.
+| Ring fill per rep | at most 450 ms, one tick at a time (a big jump lights a few ticks per step, steps at least 30 ms apart) | Each rep visibly earns its share of the ring |
+| Celebration | 1.5 s | Long enough to notice, never covers the count |
+| Cue visible | 2.5 s | Readable mid-movement, doesn't linger |
+| "No spaces allowed" | 2.5 s after the last space | Readable even while typing on |
+| Screen refresh during a workout | at most every 100 ms | Counting runs on every frame; redrawing on every frame backed up Vega's message queue |
+| Phone considered gone | 3 s without frames | Back to pairing, keeping the code |
+| Focus change | instant | Stays responsive on TV hardware |
 
 ---
 
 ## 9. Accessibility checklist
 
-- [x] Text contrast is at least 4.5 : 1 everywhere except `text-meta` (3.4 : 1 at 24 px, which counts as large text).
-- [x] Focus is shown by color and border, not color alone.
-- [x] Pairing works without the QR code: the code is printed large, in an unambiguous alphabet.
-- [x] Screen reader labels: `FocusButton` (role and label) and the rep count ("7 squats").
-- [ ] Spoken cues for users who can't watch the screen mid-exercise. Planned, see the roadmap.
-- [ ] Check the 5 % edge margin on a real Fire TV.
+- [x] Text contrast is at least 7 : 1 everywhere (lowest: `--bad` 7.1 : 1, `textSecondary` on `cueSurface` 7.3 : 1).
+- [x] Focus is shown by border and fill, not color alone, and never moves layout.
+- [x] Pairing works without the QR code: a large code in an unambiguous alphabet.
+- [x] Spoken counts and cues, for when you can't watch the screen mid-exercise.
+- [x] Screen reader labels on `FocusButton` and the rep count ("7 squats"); the phone's name error is `role="alert"`.
+- [ ] Check overscan margins on a real Fire TV.
+- [ ] Check the system on-screen keyboard on a real Fire TV (the Virtual Device shows none; see friction log 11).
