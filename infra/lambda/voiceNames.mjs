@@ -12,14 +12,22 @@ export const NAME_TEMPLATES = {
   finish: "Great work, {name}!",
 };
 
-const SPOKEN_NAME = /^[A-Za-z][A-Za-z' -]{0,15}$/;
+const SPOKEN_NAME = /^[A-Za-z][A-Za-z' -]*$/;
+export const MAX_NAME_LETTERS = 16; // spaces don't count
+export const MAX_NAME_CHARS = 2 * MAX_NAME_LETTERS; // hard cap on the whole text
+export const nameLetters = (name) => [...name.replace(/\s/g, "")].length;
 const PLACEHOLDER = /^Player \d+$/;
 
 export const NAME_CLIP_TTL_SECONDS = 60 * 24 * 60 * 60; // a returning player's clips are reused
 export const DAILY_SYNTH_LIMIT = 250; // all TVs together, about 50 new names a day
 export const VOICE_NAME_COOLDOWN_SECONDS = 10; // per TV connection
 
-export const isSpokenName = (name) => typeof name === "string" && SPOKEN_NAME.test(name) && !PLACEHOLDER.test(name);
+export const isSpokenName = (name) =>
+  typeof name === "string" &&
+  name.length <= MAX_NAME_CHARS &&
+  nameLetters(name) <= MAX_NAME_LETTERS &&
+  SPOKEN_NAME.test(name) &&
+  !PLACEHOLDER.test(name);
 
 export const phraseFor = (template, name) => NAME_TEMPLATES[template].replace("{name}", name);
 

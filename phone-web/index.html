@@ -115,7 +115,7 @@
   <form id="nameForm" autocomplete="off">
     <h2 class="display">What's your name?</h2>
     <p class="copy" style="font-size: 16px">Your TV is asking. The coach will cheer you on by name. It's saved on your TV only.</p>
-    <input id="nameInput" maxlength="16" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Your name" aria-label="Your name">
+    <input id="nameInput" maxlength="32" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Your name" aria-label="Your name">
     <button class="primary" type="submit">Send to TV</button>
   </form>
 </div>
@@ -212,6 +212,13 @@ function showNameSheet(open) {
   if (open) $("nameInput").focus();
   else $("nameInput").blur();
 }
+
+// At most 16 letters, like the TV; spaces don't count.
+$("nameInput").addEventListener("input", (e) => {
+  let letters = 0;
+  const kept = [...e.target.value].filter((ch) => /\s/.test(ch) || ++letters <= 16).join("");
+  if (kept !== e.target.value) e.target.value = kept;
+});
 
 $("nameForm").addEventListener("submit", (e) => {
   e.preventDefault();

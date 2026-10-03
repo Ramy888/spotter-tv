@@ -1,4 +1,4 @@
-import {KeyValueStore, MAX_PROFILES, ProfileStore, cleanName, spokenName} from '../src/profiles';
+import {KeyValueStore, MAX_PROFILES, ProfileStore, cleanName, limitName, spokenName} from '../src/profiles';
 
 class MemoryStore implements KeyValueStore {
   data = new Map<string, string>();
@@ -100,6 +100,9 @@ describe('names', () => {
     expect(cleanName('  Mo   Salah ')).toBe('Mo Salah');
     expect(cleanName('A\u0007b')).toBe('Ab');
     expect(cleanName('Abcdefghijklmnopqrstuvwxyz')).toBe('Abcdefghijklmnop');
+    // The 16-character cap counts letters, not spaces.
+    expect(cleanName('Mary Jane Watsons')).toBe('Mary Jane Watsons'); // 15 letters, 17 characters
+    expect(cleanName('Abcdefgh Ijklmnopqrs')).toBe('Abcdefgh Ijklmnop');
     expect(cleanName(' \n ')).toBeNull();
     expect(cleanName('mary-jo o\'neil')).toBe("Mary-Jo O'Neil"); // typed without shift
     expect(cleanName('McKenzie')).toBe('McKenzie'); // typed with capitals: kept
@@ -111,5 +114,12 @@ describe('names', () => {
     expect(spokenName('Player 2')).toBeNull(); // a placeholder, not a name
     expect(spokenName('رامي')).toBeNull(); // shown on screen, not spoken by the English voice
     expect(spokenName('R2D2')).toBeNull();
+    expect(spokenName('Mary Jane Watsons')).toBe('Mary Jane Watsons'); // spaces don't count
+    expect(spokenName('Abcdefgh Ijklmnopq')).toBeNull(); // 17 letters
+  });
+
+  it('stops typing at 16 letters, wherever the spaces are', () => {
+    expect(limitName('abcdefgh ijklmnopqrs')).toBe('abcdefgh ijklmnop');
+    expect(limitName('mary jane watsons ')).toBe('mary jane watsons '); // still typing: keep the space
   });
 });

@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
 import {FocusButton} from '../FocusButton';
-import {MAX_NAME_LENGTH, cleanName, isRealName} from '../profiles';
+import {MAX_NAME_CHARS, cleanName, isRealName, limitName} from '../profiles';
 import {color, font} from '../theme';
 import {Wordmark, screen} from './shared';
 
@@ -32,12 +32,12 @@ export const NameScreen = ({
       <TextInput
         testID="name-input"
         value={text}
-        onChangeText={setText}
+        onChangeText={(t) => setText(limitName(t))}
         onSubmitEditing={save}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         hasTVPreferredFocus
-        maxLength={MAX_NAME_LENGTH}
+        maxLength={MAX_NAME_CHARS}
         placeholder="Type your name"
         placeholderTextColor={color.textSecondary}
         autoCapitalize="words"

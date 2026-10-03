@@ -9,7 +9,9 @@ test("speaks real Latin names only", () => {
   assert.equal(isSpokenName("Player 2"), false);
   assert.equal(isSpokenName("رامي"), false);
   assert.equal(isSpokenName("R2D2"), false);
-  assert.equal(isSpokenName("Abcdefghijklmnopq"), false); // 17 characters
+  assert.equal(isSpokenName("Abcdefghijklmnopq"), false); // 17 letters
+  assert.equal(isSpokenName("Mary Jane Watsons"), true); // 15 letters: spaces don't count
+  assert.equal(isSpokenName("Abcdefgh Ijklmnopq"), false); // 17 letters
   assert.equal(isSpokenName(undefined), false);
 });
 

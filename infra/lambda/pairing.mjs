@@ -1,6 +1,6 @@
 // Pure pairing and validation rules for the Spotter relay. No AWS calls here, so this is unit-testable.
 import { randomInt } from "node:crypto";
-import { isSpokenName } from "./voiceNames.mjs";
+import { MAX_NAME_CHARS, MAX_NAME_LETTERS, isSpokenName, nameLetters } from "./voiceNames.mjs";
 
 // No 0/O/1/I/L: codes are read off a TV screen and typed or scanned on a phone.
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -11,15 +11,15 @@ export const MAX_FRAME_BYTES = 4096;
 // Voice clip ids, e.g. "count-12", "praise-3" (see voice/make-voice.mjs).
 export const CLIP_ID = /^[a-z][a-z0-9-]{0,31}$/;
 const STATUS_EXERCISES = new Set(["squat", "lunge", "jumping-jack"]);
-export const MAX_NAME_LENGTH = 16;
 
-// A display name typed on the phone: 1-16 characters after trimming, no control characters.
+// A display name typed on the phone: 1-16 letters after trimming (spaces don't count), no control characters.
 // Any script is fine for display; the TV decides separately whether the voice can say it.
 function typedName(value) {
   if (typeof value !== "string") return null;
   const name = value.replace(/\s+/g, " ").trim();
   // eslint-disable-next-line no-control-regex
-  return name.length >= 1 && [...name].length <= MAX_NAME_LENGTH && !/[\u0000-\u001f\u007f]/.test(name) ? name : null;
+  const fits = name.length >= 1 && name.length <= MAX_NAME_CHARS && nameLetters(name) <= MAX_NAME_LETTERS;
+  return fits && !/[\u0000-\u001f\u007f]/.test(name) ? name : null;
 }
 
 export function newPairingCode() {
