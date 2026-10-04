@@ -173,11 +173,12 @@ The remote has no pointer, so focus is the whole interaction model. It is implem
 | Screen | Content |
 |---|---|
 | **Pair** | Wordmark, "No account. Nothing to install on your phone.", headline, 3 numbered steps, QR inside a tick ring, the code, status pill |
-| **Pick** | "WHAT ARE WE TRAINING TODAY?", 3 exercise cards (muscles, name, "Last time 4 · target 4"), pills "Ramy · switch" and "Coach voice: TV" |
+| **Pick** | "WHAT ARE WE TRAINING TODAY?", 3 exercise cards (muscles, name, the plan: "3 × 12 · 60 s rest" or "3 × 12 · last time 21"), pills "Ramy · switch", "Coach voice: TV" and "Rest: Auto" (Auto, 30, 45, 60, 90 s, saved per player) |
 | **Who's training** | Up to 4 player cards (avatar initial, name, "Squats 4 · Lunges 6"), a "New player" card, "Edit name" under each player |
 | **Name** | "WHAT'S YOUR NAME?", the field, Save and Cancel (Skip for a new player), "Easier on your phone: it's asking for your name too." |
-| **Workout** | "Ramy · Set 1", exercise name, depth gauge, count in the tick ring, "of 5 target", cue pill, stat tiles (pace, streak, best depth), Finish |
-| **Summary** | "NICE WORK, RAMY", count, stat tiles, coach card ("COACH", plus "✨ AI coach" when rewritten by AI), amber "NEXT TIME" card, Same again and New workout |
+| **Workout** | "Ramy · Set 1 of 3", exercise name, depth gauge, count in the tick ring, "of 12 squats", cue pill, stat tiles (pace, streak, best depth), Finish |
+| **Rest** (between sets) | Inside the ring: volt "REST", the countdown in seconds (ticks empty as it runs), "Next: set 2 of 3 · 12 squats". **Skip rest** (focused) above Finish. Reps don't count during a rest. |
+| **Summary** | "NICE WORK, RAMY", count, "SETS 12 · 12 · 12", stat tiles, coach card ("COACH", plus "✨ AI coach" when rewritten by AI), amber "NEXT TIME" card, Same again and New workout |
 
 ---
 
@@ -204,9 +205,10 @@ The remote has no pointer, so focus is the whole interaction model. It is implem
 | Ring fill per rep | at most 450 ms, one tick at a time (a big jump lights a few ticks per step, steps at least 30 ms apart) | Each rep visibly earns its share of the ring |
 | Celebration | 1.5 s | Long enough to notice, never covers the count |
 | Cue visible | 2.5 s | Readable mid-movement, doesn't linger |
+| Rest between sets | 60 s (jumping jacks 45 s), or the player's choice | Spoken: a rest line at the start, encouragement halfway, "3, 2, 1", then the next set |
 | "No spaces allowed" | 2.5 s after the last space | Readable even while typing on |
 | Screen refresh during a workout | at most every 100 ms | Counting runs on every frame; redrawing on every frame backed up Vega's message queue |
-| Phone considered gone | 3 s without frames | Back to pairing, keeping the code |
+| Phone considered gone | 3 s without frames, except during a rest | Back to pairing, keeping the code. The phone is silent when nobody is in view, so a rest away from the camera is fine. |
 | Focus change | instant | Stays responsive on TV hardware |
 
 ---

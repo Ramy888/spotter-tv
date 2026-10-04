@@ -9,6 +9,7 @@ Built for the Amazon "Build, Ship, Shape" Developer Hackathon: **Fire TV track (
 ## What it does
 
 - **Pair in one scan.** The TV shows a QR code and a 6-character code. The phone opens a web page, no install, and starts its camera.
+- **Trains like a coach: sets, reps and rest.** Squats 3 × 12, lunges 3 × 10, jumping jacks 3 × 20, with a rest countdown between sets ("Great set! Take a breather.", "Set two. Let's go!"), Skip rest, and a rest time each player can choose. A clean, complete workout adds 2 reps per set next time. The phone shows the set and the rest countdown too.
 - **Counts reps live** for squats, lunges and jumping jacks, from on-phone pose tracking (MediaPipe). A rep only counts at full depth; half reps get a "Go deeper" cue.
 - **Talks to you.** An Amazon Polly voice counts reps, cues form, and calls you by name ("Let's go, Ramy!", "Last one, Ramy!"), on the TV or on the phone.
 - **Celebrates.** Streaks, a new deepest rep and hitting your target get a burst, a badge and a funny cartoon sticker for the exercise, and the ring around the count fills tick by tick with each rep. Every finished set ends with a sticker too.
@@ -133,6 +134,7 @@ node e2e.mjs <RelayUrl>                      # pairing, forwarding, latency
 node e2e-coach.mjs <RelayUrl>                # AI coach and its limits
 node e2e-voice-name.mjs <RelayUrl> <PhoneUrl>
 node e2e-name-prompt.mjs <RelayUrl>
+node e2e-status.mjs <RelayUrl>             # set and rest progress to the phone
 ```
 
 > The Vega build fails if the project path contains spaces (see `docs/friction-log.md`).
