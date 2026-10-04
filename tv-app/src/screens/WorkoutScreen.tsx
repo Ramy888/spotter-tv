@@ -1,6 +1,6 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
-import {CelebrationBadge, CelebrationBurst} from '../Celebration';
+import {ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
+import {CelebrationBadge, CelebrationBurst, RewardSticker} from '../Celebration';
 import {ExerciseDef} from '../exercises';
 import {CUE_TEXT, Cue} from '../exercises/types';
 import {FocusButton} from '../FocusButton';
@@ -16,7 +16,7 @@ export type WorkoutView = {
   reps: number;
   metric: number | null;
   cue: Cue | null;
-  celebration: {reward: Reward; id: number} | null;
+  celebration: {reward: Reward; id: number; art: ImageSourcePropType | null} | null;
   target: number | null;
   set: number;
   paceMs: number | null;
@@ -92,6 +92,11 @@ export const WorkoutScreen = ({
           {w.celebration ? <CelebrationBadge key={w.celebration.id} reward={w.celebration.reward} /> : null}
         </View>
         {w.celebration ? <CelebrationBurst key={`b${w.celebration.id}`} reward={w.celebration.reward} /> : null}
+        {w.celebration?.art ? (
+          <View style={styles.stickerSlot} pointerEvents="none">
+            <RewardSticker key={`s${w.celebration.id}`} source={w.celebration.art} />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.right}>
@@ -121,6 +126,8 @@ const styles = StyleSheet.create({
   },
   left: {width: 250, justifyContent: 'space-between'},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
+  // Top-right of the ring, outside the count (see design-system.md §6).
+  stickerSlot: {position: 'absolute', top: 0, right: 16},
   right: {width: 250, justifyContent: 'space-between'},
   small: {color: color.textSecondary, fontFamily: font.body, fontSize: 18},
   name: {color: color.text, fontFamily: font.display, fontSize: 50},

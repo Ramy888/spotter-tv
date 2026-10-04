@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {CoachSummary} from '../coach';
 import {ExerciseDef} from '../exercises';
 import {FocusButton} from '../FocusButton';
@@ -16,6 +16,7 @@ export const SummaryScreen = ({
   onAgain,
   onNew,
   playerName,
+  art,
 }: {
   exercise: ExerciseDef;
   stats: SummaryStats;
@@ -24,9 +25,11 @@ export const SummaryScreen = ({
   onAgain: () => void;
   onNew: () => void;
   playerName: string | null; // shown when the player has a real name
+  art: ImageSourcePropType | null; // reward art for finishing the set
 }) => (
   <View style={styles.root}>
     <View style={styles.left}>
+      {art ? <Image source={art} style={styles.art} testID="reward-art" /> : null}
       <View>
         <Text style={styles.complete} testID="complete-label">
           {playerName ? `NICE WORK, ${playerName.toUpperCase()}` : 'SESSION COMPLETE'}
@@ -79,6 +82,18 @@ export const SummaryScreen = ({
 const styles = StyleSheet.create({
   root: {flex: 1, flexDirection: 'row', backgroundColor: color.ground, paddingHorizontal: 72, paddingVertical: 52},
   left: {flex: 1, justifyContent: 'space-between', marginRight: 56},
+  // Beside the count, clear of the longest unit ("JUMPING JACKS").
+  art: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 190,
+    height: 190,
+    borderRadius: 24,
+    borderWidth: 4,
+    borderColor: color.accent,
+    transform: [{rotate: '6deg'}],
+  },
   right: {flex: 1, justifyContent: 'center'},
   complete: {color: color.accent, fontFamily: font.bodyBold, fontSize: 20, letterSpacing: 3},
   count: {color: color.text, fontFamily: font.display, fontSize: 160, lineHeight: 150},

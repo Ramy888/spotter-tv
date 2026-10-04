@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useRef} from 'react';
-import {Animated, Easing, StyleSheet, Text} from 'react-native';
+import {Animated, Easing, ImageSourcePropType, StyleSheet, Text} from 'react-native';
 import {Reward} from './rewards';
 import {color, font} from './theme';
 
@@ -64,6 +64,20 @@ export const CelebrationBurst = ({reward}: {reward: Reward}) => {
   );
 };
 
+// Reward art for a big moment: pops in beside the ring (never over the count), holds, fades.
+export const RewardSticker = ({source}: {source: ImageSourcePropType}) => {
+  const progress = usePlayOnce();
+  const opacity = progress.interpolate({inputRange: [0, 0.12, 0.8, 1], outputRange: [0, 1, 1, 0]});
+  const scale = progress.interpolate({inputRange: [0, 0.12, 0.2, 1], outputRange: [0.4, 1.12, 1, 1]});
+  return (
+    <Animated.Image
+      source={source}
+      testID="reward-sticker"
+      style={[styles.sticker, {opacity, transform: [{scale}, {rotate: '8deg'}]}]}
+    />
+  );
+};
+
 // Names the achievement. Lives in the cue line's slot, so it never overlaps other text.
 export const CelebrationBadge = ({reward}: {reward: Reward}) => {
   const progress = usePlayOnce();
@@ -89,4 +103,5 @@ const styles = StyleSheet.create({
     borderColor: color.accent,
   },
   badgeText: {color: color.text, fontSize: 30, fontFamily: font.display},
+  sticker: {width: 170, height: 170, borderRadius: 24, borderWidth: 4, borderColor: color.accent},
 });

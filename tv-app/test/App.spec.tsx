@@ -242,6 +242,44 @@ describe('App', () => {
     jest.useRealTimers();
   });
 
+  const doReps = (count: number, from = 0) => {
+    let t = from;
+    for (let rep = 0; rep < count; rep++) {
+      for (const [offset, n] of [[0, 30], [0.2, 40], [0, 30]] as const) {
+        for (let i = 0; i < n; i++) {
+          t += 33;
+          deliver({...frame(offset), t});
+        }
+      }
+    }
+    act(() => jest.advanceTimersByTime(200));
+    return t;
+  };
+
+  it('pops reward art for a big moment (a clean streak), not for the first rep', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    const t = doReps(1);
+    expect(screen.queryByTestId('reward-sticker')).toBeNull(); // first rep: emoji only
+    doReps(4, t); // the 5th clean rep in a row is a streak
+    expect(screen.getByTestId('reward-sticker')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('ends a set with reward art on the summary, and none for an empty set', () => {
+    jest.useFakeTimers();
+    const screen = render(<App />);
+    startSquats(screen);
+    fireEvent.press(screen.getByTestId('finish'));
+    expect(screen.queryByTestId('reward-art')).toBeNull();
+    fireEvent.press(screen.getByTestId('again'));
+    doReps(2);
+    fireEvent.press(screen.getByTestId('finish'));
+    expect(screen.getByTestId('reward-art')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
   const aiSummary = {
     headline: 'Five strong squats!',
     insights: ['You held a steady 2.0 s per rep.'],

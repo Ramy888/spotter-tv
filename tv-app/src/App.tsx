@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useEffect, useRef, useState} from 'react';
+import {ImageSourcePropType} from 'react-native';
 import {CoachSummary, coach} from './coach';
 import {PHONE_URL, RELAY_URL} from './config';
 import {ExerciseDef, ExerciseId} from './exercises';
@@ -8,6 +9,7 @@ import {Cue, Exercise} from './exercises/types';
 import {Profile, ProfileStore, Progress, isRealName, spokenName} from './profiles';
 import {RelayMessageReader} from './relayMessages';
 import {Reward, RewardTracker} from './rewards';
+import {isBigReward, pickRewardArt} from './rewardArt';
 import {PairScreen} from './screens/PairScreen';
 import {History, PickScreen} from './screens/PickScreen';
 import {SummaryScreen, SummaryStats} from './screens/SummaryScreen';
@@ -43,7 +45,7 @@ type Workout = {
   metric: number | null;
   cue: Cue | null;
   cueAt: number;
-  celebration: {reward: Reward; id: number} | null;
+  celebration: {reward: Reward; id: number; art: ImageSourcePropType | null} | null;
   target: number | null;
   set: number;
   paceMs: number | null;
@@ -92,6 +94,9 @@ export const App = () => {
   // Anonymous players and their progress, saved on the TV (no account).
   const profiles = useRef(new ProfileStore(AsyncStorage));
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
+  const [summaryArt, setSummaryArt] = useState<ImageSourcePropType | null>(null);
+  // The last reward art shown, so the next one is different.
+  const lastArt = useRef<ImageSourcePropType | null>(null);
 
   // The socket handlers live in one long-lived effect, so they read current state through refs.
   const detector = useRef<Exercise | null>(null);
@@ -147,6 +152,21 @@ export const App = () => {
     setPhase('active');
   };
 
+  // Reward art for an exercise, avoiding the last one shown.
+  const nextArt = (id: ExerciseId) => {
+    lastArt.current = pickRewardArt(id, Math.random, lastArt.current);
+    return lastArt.current;
+  };
+
+  // Only the big moments get a picture. Reads refs only, so the socket effect can call it.
+  const bigRewardArt = (reward: Reward) => {
+    if (!session.current || !isBigReward(reward.kind)) {
+      return null;
+    }
+    lastArt.current = pickRewardArt(session.current.exercise, Math.random, lastArt.current);
+    return lastArt.current;
+  };
+
   const cycleVoice = () => {
     const next = NEXT_VOICE[voice.current.mode];
     voice.current.mode = next;
@@ -170,6 +190,7 @@ export const App = () => {
         .then(() => setHistory(profiles.current.activeProgress))
         .catch(() => {}); // saving is best effort; the workout itself already happened
       setSummaryStats({...doneStats, reps: done.reps.length, clean: done.reps.length - done.cues.slower});
+      setSummaryArt(done.reps.length > 0 ? nextArt(done.exercise) : null); // a reward for finishing the set
       setSummary(result);
       setAiCoached(false);
       // Show the rule-based summary now; the relay may send back an AI rewrite of it.
@@ -338,7 +359,9 @@ export const App = () => {
           metric: u.metric,
           cue: u.cue ?? (now - prev.cueAt < CUE_SHOW_MS ? prev.cue : null),
           cueAt: u.cue ? now : prev.cueAt,
-          celebration: reward ? {reward, id: (prev.celebration?.id ?? 0) + 1} : prev.celebration,
+          celebration: reward
+            ? {reward, id: (prev.celebration?.id ?? 0) + 1, art: bigRewardArt(reward)}
+            : prev.celebration,
           streak: rewards.current?.cleanStreak ?? 0,
         };
         // Lets the phone show the live count too.
@@ -451,6 +474,7 @@ export const App = () => {
         onAgain={() => choose(exercise)}
         onNew={newWorkout}
         playerName={shownName}
+        art={summaryArt}
       />
     );
   } else if (phase === 'picking') {

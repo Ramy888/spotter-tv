@@ -24,3 +24,4 @@ coach-worker/node_modules/
 coach-worker/.wrangler/
 .wrangler/
 infra/site/voiceNames.mjs
+reward-art/out/
