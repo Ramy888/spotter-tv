@@ -122,6 +122,6 @@ React Native 0.83 through `@amazon-devices/react-native-kepler`.
 
 ## Other tools, for context
 
-- **Cloudflare Workers AI** (Qwen3 30B by default): stands in for Bedrock as the coach's rewrite model, behind a shared-secret Worker. The rewrite is used only if it passes our validation (no invented numbers, no banned topics). We also used FLUX.1 schnell once, offline, to make the 12 reward stickers, which were reviewed by hand before bundling (7 of the first 18 were rejected).
+- **Cloudflare Workers AI** (Qwen3 30B by default): stands in for Bedrock as the coach's rewrite model, behind a shared-secret Worker. The rewrite is used only if it passes our validation (no invented numbers, no banned topics). We also used FLUX.1 schnell once, offline, to make the 12 reward stickers, which were reviewed by hand before bundling (we made 21 and rejected 8).
 - **MediaPipe Pose (Tasks Vision, lite model):** on-phone pose tracking in the browser, 48 fps on an iPhone 13.
 - **Kiro:** not used.
