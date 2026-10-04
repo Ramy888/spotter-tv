@@ -1,4 +1,6 @@
-# Friction log: Rally (Fire TV / Vega track)
+# Friction log: Spotter (Fire TV / Vega track + AWS Builder)
+
+Project: Spotter, AI form coaching on Fire TV (`README.md`). Entries are in the order we hit them.
 
 Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Vega SDK 0.24.12112, Vega CLI 1.4.2.
 
@@ -62,7 +64,9 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Task:** Make a first Bedrock `converse` call to Claude from a new account.
 - **Actual:** `ValidationException: Operation not allowed`. Only `aws bedrock get-use-case-for-model-access` reveals the cause: "You have not filled out the request form."
 - **Follow-up:** Submitting the form with `aws bedrock put-use-case-for-model-access` then failed with "Your account is not authorized to perform this action. Please create a support case." Every model, including Amazon Nova Lite, returns "Operation not allowed" in both eu-central-1 and us-east-1. The account is from 2016, and Lambda, API Gateway and DynamoDB work normally. A support case is needed.
+- **Update 2026-10-04:** Support case 179076143400741 (opened 2026-09-30, followed up 2026-10-01) has had no reply in 4 days, and Bedrock still returns "Operation not allowed". Asked in the hackathon Discord; the advice was to contact AWS Support on Reddit, which escalated the case. The same account also can't create CloudFront distributions (entry 12).
 - **Severity:** High for the AWS Builder mini challenge: it blocks Bedrock entirely, and nothing in the console explains why.
+- **Workaround:** The AI coach runs on Cloudflare Workers AI behind a provider switch (`COACH_PROVIDER` in `infra/stack.ts`), ready to move to Bedrock once it's enabled.
 - **Suggestion:** Say in the `converse` error that the model's use-case form hasn't been submitted, and link to it. When an account is blocked at the account level, state that and the reason, rather than returning a generic "Operation not allowed".
 
 ## 8. App `console.log` output doesn't show up in `vega device start-log-stream`
@@ -102,3 +106,32 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Severity:** Medium. The text input can't be tested from the remote without a device, and there's no way to tell whether real hardware will show the keyboard.
 - **Workaround:** Tested typing with `inputd-cli send_text`.
 - **Suggestion:** Show the system keyboard on the Virtual Device, or document how text entry works there and on devices.
+
+## 12. CloudFront: "Your account must be verified" on a 2016 account
+- **Date:** 2026-09-30
+- **Task:** Serve the phone camera page over HTTPS through CloudFront (the phone camera needs a secure page), defined in the CDK stack.
+- **Steps:** Added a CloudFront distribution to the stack and ran `cdk deploy`.
+- **Expected:** The distribution is created. The account is from 2016 and other services work.
+- **Actual:** `Your account must be verified before you can add new CloudFront resources. To verify your account, please contact AWS Support` (request ID 055fba00-b44e-4e46-8303-d14311539aef). The stack rolled back. Nothing in the console said the account needed verification before this.
+- **Severity:** Medium. It blocks the standard way to host a static page.
+- **Workaround:** Served the page from a Lambda function URL (HTTPS by default), which only answers an allow-list of paths.
+- **Suggestion:** Show pending account verification (and which services it blocks) in the console, and let the owner start it without a support case.
+
+## 13. `vega run-app` wipes the app's saved data; `vega device install-app` keeps it
+- **Date:** 2026-10-01
+- **Task:** Keep players and progress saved with Vega AsyncStorage while installing new builds on the Vega Virtual Device.
+- **Steps:** Saved a player name and a workout, rebuilt, and installed the new build with `vega run-app <vpkg> com.spotter.tv.main -d VirtualDevice`.
+- **Expected:** Installing a new build of the same app keeps its data, as an app update does.
+- **Actual:** After `vega run-app`, the app started with no saved players. After `vega device install-app -p <vpkg> -d VirtualDevice` the data was kept ("Ramy · switch" was still there). The data also survived app restarts and a full `vega virtual-device stop` / `start`.
+- **Severity:** Medium. It looks like a persistence bug in your own app, and it cost us time ruling one out.
+- **Workaround:** Use `vega device install-app` (then `vega device launch-app`) whenever saved data matters, such as when recording a demo.
+- **Suggestion:** Document which commands clear app data, and add a flag such as `vega run-app --keep-data`.
+
+## 14. `TextInput` clips the bottom of its text when sized by padding
+- **Date:** 2026-10-01
+- **Task:** A large name field on the TV (React Native `TextInput`, 44 pt condensed font, 18 pt vertical padding).
+- **Expected:** The text fits inside the field, as it does on iOS and Android.
+- **Actual:** On the Vega Virtual Device the bottom of the text was cut off: the tail of the "y" in "Ramy" was missing.
+- **Severity:** Low.
+- **Workaround:** Gave the field an explicit `height` and `lineHeight`, with no vertical padding.
+- **Suggestion:** Size text inputs from the font's full line height, or document the explicit height requirement.
