@@ -226,7 +226,7 @@ export const App = () => {
       stats.current.lastFrameAt = Date.now(); // the silence check starts over with the new set
     }
     if (voiceCoach.current) {
-      voice.current.say(voiceCoach.current.nextSet());
+      voice.current.say(voiceCoach.current.nextSet(latest.current.set + 1, latest.current.sets));
     }
     latest.current = {
       ...latest.current,

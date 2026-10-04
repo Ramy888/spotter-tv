@@ -2,17 +2,95 @@
   "voice": "Matthew",
   "engine": "neural",
   "groups": {
-    "start": ["Let's go!", "Here we go!", "Let's get to work!"],
-    "cue-deeper": ["Go deeper.", "A little lower.", "Sit back and get lower.", "Deeper on the next one."],
-    "cue-slower": ["Slow it down.", "Control the movement.", "Nice and slow."],
-    "cue-step-back": ["Step back so I can see you.", "Move back a little.", "I lost your legs. Step back."],
-    "praise": ["Nice form.", "Looking strong.", "Keep it up.", "Great depth.", "Smooth.", "That's it.", "Keep breathing.", "Strong legs!", "You've got this.", "Beautiful rep.", "Stay with it.", "Great control."],
-    "near-target-2": ["Two more!"],
-    "near-target-1": ["Almost there!", "Last one, make it count!"],
-    "streak": ["Five clean in a row!", "Perfect streak!", "You're on fire!"],
-    "deepest": ["Deepest one yet!", "New best depth!"],
-    "target": ["Target smashed!", "You hit your goal!"],
-    "finish": ["Great work!", "Workout done. Nice job!", "That's a wrap, well done!"]
+    "start": [
+      "Let's go!",
+      "Here we go!",
+      "Let's get to work!"
+    ],
+    "cue-deeper": [
+      "Go deeper.",
+      "A little lower.",
+      "Sit back and get lower.",
+      "Deeper on the next one."
+    ],
+    "cue-slower": [
+      "Slow it down.",
+      "Control the movement.",
+      "Nice and slow."
+    ],
+    "cue-step-back": [
+      "Step back so I can see you.",
+      "Move back a little.",
+      "I lost your legs. Step back."
+    ],
+    "praise": [
+      "Nice form.",
+      "Looking strong.",
+      "Keep it up.",
+      "Great depth.",
+      "Smooth.",
+      "That's it.",
+      "Keep breathing.",
+      "Strong legs!",
+      "You've got this.",
+      "Beautiful rep.",
+      "Stay with it.",
+      "Great control."
+    ],
+    "near-target-2": [
+      "Two more!"
+    ],
+    "near-target-1": [
+      "Almost there!",
+      "Last one, make it count!"
+    ],
+    "streak": [
+      "Five clean in a row!",
+      "Perfect streak!",
+      "You're on fire!"
+    ],
+    "deepest": [
+      "Deepest one yet!",
+      "New best depth!"
+    ],
+    "target": [
+      "Target smashed!",
+      "You hit your goal!"
+    ],
+    "finish": [
+      "Great work!",
+      "Workout done. Nice job!",
+      "That's a wrap, well done!"
+    ],
+    "rest-start": [
+      "Great set! Take a breather.",
+      "Nice work. Rest up.",
+      "Set done! Shake it out.",
+      "That's a set. Breathe."
+    ],
+    "rest-mid": [
+      "Breathe deep. You're doing great.",
+      "Stay loose. The next set is yours.",
+      "Recover well, then we go again.",
+      "Every set makes you stronger.",
+      "Halfway through your rest. Get ready."
+    ],
+    "set-2": [
+      "Set two. Let's go!"
+    ],
+    "set-3": [
+      "Set three. Let's go!"
+    ],
+    "set-4": [
+      "Set four. Let's go!"
+    ],
+    "set-5": [
+      "Set five. Let's go!"
+    ],
+    "last-set": [
+      "Last set. Give it everything!",
+      "Final set. Finish strong!"
+    ]
   },
   "counts": 50
 }

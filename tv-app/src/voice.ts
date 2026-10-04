@@ -41,17 +41,22 @@ export class VoiceCoach {
     return [this.named ? 'name-start' : this.pick('start')];
   }
 
-  // Between sets. Until dedicated rest lines exist, rest uses praise and the next set re-greets.
+  // Between sets: "Great set! Take a breather.", an encouraging line halfway through the rest,
+  // then "Set two. Let's go!" or "Last set. Give it everything!" (the 3-2-1 is count clips).
   restStart(): string[] {
-    return [this.pick('praise')];
+    return [this.pick('rest-start')];
   }
 
   restMid(): string[] {
-    return [this.pick('praise')];
+    return [this.pick('rest-mid')];
   }
 
-  nextSet(): string[] {
-    return this.start();
+  nextSet(set: number, sets: number): string[] {
+    if (set >= sets) {
+      return [this.pick('last-set')];
+    }
+    const group = `set-${set}`;
+    return group in manifest.groups ? [this.pick(group as Group)] : this.start();
   }
 
   finish(): string[] {

@@ -85,6 +85,11 @@ describe('VoiceCoach', () => {
       ...v.finish(),
       ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap((n) => v.update(rep(n), n === 5 ? reward('streak') : null, n * 3000)),
       ...v.update(halfRep(10), null, 60000),
+      ...v.restStart(),
+      ...v.restMid(),
+      ...v.nextSet(2, 3),
+      ...v.nextSet(3, 3),
+      ...v.nextSet(4, 5),
     ];
     expect(all.every(exists)).toBe(true);
   });
@@ -125,6 +130,20 @@ describe('VoiceCoach', () => {
       const v = new VoiceCoach(8);
       const all = [...v.start(), ...v.update(halfRep(0), null, 0), ...v.update(rep(7), null, 9000), ...v.finish()];
       expect(all.filter((c) => c.startsWith('name-'))).toEqual([]);
+    });
+  });
+
+  describe('between sets', () => {
+    it('says a rest line when the set ends and an encouraging line halfway', () => {
+      const v = new VoiceCoach(12);
+      expect(v.restStart().map(groupOf)).toEqual(['rest-start']);
+      expect(v.restMid().map(groupOf)).toEqual(['rest-mid']);
+    });
+
+    it('announces the next set, and the last set differently', () => {
+      const v = new VoiceCoach(12);
+      expect(v.nextSet(2, 3).map(groupOf)).toEqual(['set-2']);
+      expect(v.nextSet(3, 3).map(groupOf)).toEqual(['last-set']);
     });
   });
 });
