@@ -14,6 +14,12 @@ export type SummaryStats = {
   sets: number[]; // reps in each set
 };
 
+// The coach's "next time" advice under the NEXT TIME label: without that prefix, starting with a capital.
+const nextLine = (next: string) => {
+  const line = next.replace(/^next time[:,]?\s*/i, '');
+  return line.charAt(0).toUpperCase() + line.slice(1);
+};
+
 export const SummaryScreen = ({
   exercise,
   stats,
@@ -85,7 +91,7 @@ export const SummaryScreen = ({
       </View>
       <View style={styles.next}>
         <Text style={styles.nextLabel}>NEXT TIME</Text>
-        <Text style={styles.nextText}>{summary.next.replace(/^next time[:,]?\s*/i, '')}</Text>
+        <Text style={styles.nextText}>{nextLine(summary.next)}</Text>
       </View>
     </View>
   </View>

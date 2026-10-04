@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotter privacy policy</title>
+<style>
+  :root { --ground: #0A0B10; --surface: #14161F; --line: #2A2E40; --text: #F4F5F7; --muted: #A3A8B8; --accent: #C8FF3D; }
+  body { margin: 0; background: var(--ground); color: var(--text); font: 17px/1.6 system-ui, -apple-system, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 1px; }
+  h1 { font-size: 34px; line-height: 1.15; margin: 28px 0 4px; }
+  h2 { font-size: 20px; margin: 32px 0 8px; color: var(--accent); }
+  p, li { color: var(--muted); }
+  strong { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<header><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="28" height="28" aria-hidden="true"> <circle cx="256" cy="256" r="196" fill="none" stroke="#2A2E40" stroke-width="44"/><path d="M256 60 A196 196 0 1 1 63.5 292.7" fill="none" stroke="#C8FF3D" stroke-width="44" stroke-linecap="round"/> <g fill="none" stroke="#F4F5F7" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"><path d="M240 222 L202 304 L300 302 L290 388"/><path d="M236 242 L344 236"/></g><circle cx="254" cy="172" r="42" fill="#F4F5F7"/> </svg> SPOTTER</header>
+<h1>Privacy policy</h1>
+<p>Last updated: October 4, 2026</p>
+
+<p>Spotter is a fitness app for Fire TV. Your phone's camera tracks your movement, and your TV counts your reps and coaches you. There are no accounts, no ads and no tracking.</p>
+
+<h2>Camera video never leaves your phone</h2>
+<p>Pose tracking runs on your phone, in the Spotter web page. <strong>No video or photo is sent or stored anywhere.</strong> Only 33 body points (positions like "left knee", as numbers) are sent, about 15 times a second, from your phone to your TV through our relay.</p>
+
+<h2>What we handle, and for how long</h2>
+<table>
+<tr><th>Data</th><th>Why</th><th>Where, and how long</th></tr>
+<tr><td>Body points (numbers, no images)</td><td>Counting reps on your TV</td><td>Passed through our relay on Amazon Web Services in real time. <strong>Not stored.</strong></td></tr>
+<tr><td>Pairing code and connection ids</td><td>Connecting your phone to your TV</td><td>Our server (Amazon Web Services). Expires after 2 hours and is then removed automatically.</td></tr>
+<tr><td>Player names and workout progress</td><td>"Who's training?", your history and next targets</td><td><strong>Only on your TV</strong> (device storage). Delete by uninstalling the app.</td></tr>
+<tr><td>A player's name (optional)</td><td>So the coach can say it ("Let's go, Ramy!")</td><td>Sent to Amazon Polly to make 5 short voice clips. The clips are kept on our server for 60 days, then removed automatically. Skip naming a player to avoid this.</td></tr>
+<tr><td>Workout numbers (reps, pace, depth), never your name</td><td>Optional AI rewrite of the coach's summary</td><td>Sent to an AI model (Cloudflare Workers AI). Not stored by us.</td></tr>
+<tr><td>Server logs</td><td>Keeping the service running</td><td>Amazon Web Services, deleted after 7 days. No video, no names.</td></tr>
+</table>
+
+<h2>What we don't do</h2>
+<ul>
+<li>No accounts, sign-in, email or phone number.</li>
+<li>No advertising, analytics or tracking, and no cookies.</li>
+<li>We don't sell or share personal data.</li>
+</ul>
+
+<h2>Children</h2>
+<p>Spotter is not directed at children under 13. Workouts with children should be supervised by an adult.</p>
+
+<h2>Health</h2>
+<p>Spotter gives general exercise feedback, not medical advice. Stop if you feel pain, and ask a doctor before starting a new exercise program.</p>
+
+<h2>Contact</h2>
+<p>Questions or requests: <a href="https://github.com/Ramy888/spotter-tv/issues">open an issue on the Spotter GitHub repository</a>.</p>
+</main>
+</body>
+</html>

@@ -29,13 +29,15 @@ def figure(width):
             f'<path d="M240 222 L202 304 L300 302 L290 388"/><path d="M236 242 L344 236"/></g>'
             f'<circle cx="254" cy="172" r="{width + 2}" fill="{WHITE}"/>')
 
-def svg(body, bg):
-    back = f'<rect width="512" height="512" rx="112" fill="{GROUND}"/>' if bg else ""
+def svg(body, bg, radius=112):
+    back = f'<rect width="512" height="512" rx="{radius}" fill="{GROUND}"/>' if bg else ""
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">\n  {back}\n  '
             f'{body}\n</svg>\n')
 
 ring = ticks(256, 256, 196, 24, 17, 40, 18)
 open("logo-mark.svg", "w").write(svg(f"<g>\n    {ring}\n  </g>\n  {figure(30)}", True))
+# Store icons must be opaque: a full square (the store rounds corners itself where it wants to).
+open("logo-mark-square.svg", "w").write(svg(f"<g>\n    {ring}\n  </g>\n  {figure(30)}", True, 0))
 open("logo-mark-transparent.svg", "w").write(svg(f"<g>\n    {ring}\n  </g>\n  {figure(30)}", False))
 open("logo-small.svg", "w").write(svg(f"{arc(256, 256, 196, 0.72, 44)}\n  {figure(40)}", True))
 open("logo-small-transparent.svg", "w").write(svg(f"{arc(256, 256, 196, 0.72, 44)}\n  {figure(40)}", False))

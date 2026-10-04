@@ -47,6 +47,11 @@ describe('coach', () => {
     expect(summary.target).toBe(12);
   });
 
+  it('says nothing about sets when the first one was cut short ("0 of 3" helps nobody)', () => {
+    const summary = coach(session(steady(8), {}, 'squat', [8]), plan(12, 3));
+    expect(summary.insights.join(' ')).not.toMatch(/sets/);
+  });
+
   it('flags a fast pace and half reps, and asks for full depth instead of more reps', () => {
     const summary = coach(session([[900, 95], [800, 96], [900, 94], [850, 95]], {deeper: 2, slower: 4}), plan(4));
     expect(summary.insights).toContainEqual('Fast pace: 0.9 s per rep. Slowing down builds more strength.');

@@ -8,11 +8,13 @@ import { nameClipKey, parseNameClipPath } from "./voiceNames.mjs"; // copied fro
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const page = readFileSync(new URL("./public/index.html", import.meta.url), "utf8");
+const privacy = readFileSync(new URL("./public/privacy.html", import.meta.url), "utf8");
 const config = JSON.stringify({ relayUrl: process.env.RELAY_URL });
 
 const routes = {
   "/": { body: page, type: "text/html; charset=utf-8", cache: "no-cache" },
   "/index.html": { body: page, type: "text/html; charset=utf-8", cache: "no-cache" },
+  "/privacy": { body: privacy, type: "text/html; charset=utf-8", cache: "max-age=3600" },
   "/config.json": { body: config, type: "application/json", cache: "no-cache" },
 };
 

@@ -450,6 +450,8 @@ describe('App', () => {
     deliver({type: 'coach', summary: aiSummary, provider: 'workers-ai'});
     expect(screen.getByTestId('summary-headline')).toHaveTextContent('Five strong squats!');
     expect(screen.getByTestId('ai-label')).toBeTruthy();
+    // "Next time, go for 7..." loses its prefix under the NEXT TIME label and starts with a capital.
+    expect(screen.getByText('Go for 7 squats with the same form.')).toBeTruthy();
     jest.useRealTimers();
   });
 

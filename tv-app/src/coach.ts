@@ -54,9 +54,9 @@ export function coach(session: Session, plan: Plan): CoachSummary {
     }
   }
 
-  // Sets: only worth saying when the workout ended early.
+  // Sets: only worth saying when the workout ended early, after at least one full set.
   const fullSets = session.sets.filter((reps) => reps >= plan.reps).length;
-  if (fullSets < plan.sets) {
+  if (fullSets > 0 && fullSets < plan.sets) {
     insights.push(`You finished ${fullSets} of ${plural(plan.sets, 'set')}.`);
   }
 

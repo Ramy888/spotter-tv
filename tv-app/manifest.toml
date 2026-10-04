@@ -3,7 +3,8 @@ schema-version = 1
 [package]
 title = "Spotter"
 icon = "@image/spotter_icon.png" # 512×512, made from brand/logo-mark.svg
-version = "0.1.0"
+version = "1.0.0"
+build-number = 1 # raise for every store upload
 id = "com.spotter.tv"
 
 [os.version]
