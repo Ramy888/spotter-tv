@@ -29,14 +29,14 @@ describe('ProfileStore', () => {
     const first = await loaded(mem);
     await first.recordSession('squat', 7, 9, 84);
     const second = await loaded(mem); // a new app launch reading the same storage
-    expect(second.activeProgress.squat).toEqual({last: 7, target: 9, bestDepth: 84, sessions: 1});
+    expect(second.activeProgress.squat).toEqual({last: 7, target: null, repsPerSet: 9, bestDepth: 84, sessions: 1});
   });
 
   it('accumulates sessions and keeps the deepest depth ever', async () => {
     const store = await loaded();
     await store.recordSession('squat', 7, 9, 84);
     await store.recordSession('squat', 9, 11, 90);
-    expect(store.activeProgress.squat).toEqual({last: 9, target: 11, bestDepth: 84, sessions: 2});
+    expect(store.activeProgress.squat).toEqual({last: 9, target: null, repsPerSet: 11, bestDepth: 84, sessions: 2});
   });
 
   it('keeps each player\'s progress separate and remembers who trained last', async () => {

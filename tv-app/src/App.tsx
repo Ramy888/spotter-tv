@@ -16,7 +16,8 @@ import {SummaryScreen, SummaryStats} from './screens/SummaryScreen';
 import {NameScreen} from './screens/NameScreen';
 import {WhoScreen} from './screens/WhoScreen';
 import {WorkoutScreen} from './screens/WorkoutScreen';
-import {Session, recordUpdate, startSession} from './session';
+import {Plan, planFor} from './plan';
+import {Session, currentSetReps, endSet, recordUpdate, startSession} from './session';
 import {VoiceCoach} from './voice';
 import {VoiceMode, VoicePlayer} from './voicePlayer';
 import {Stage} from './Stage';
@@ -34,6 +35,7 @@ const KEEPALIVE_MS = 5 * 60 * 1000;
 // Ask again for a name's clips only after this long (the relay also rate-limits per TV).
 const VOICE_NAME_RETRY_MS = 15 * 1000;
 const UI_INTERVAL_MS = 100;
+const REST_TICK_MS = 250;
 const CUE_SHOW_MS = 2500;
 
 const VOICE_LABEL: Record<VoiceMode, string> = {tv: 'TV', phone: 'Phone', off: 'Off'};
@@ -46,8 +48,12 @@ type Workout = {
   cue: Cue | null;
   cueAt: number;
   celebration: {reward: Reward; id: number; art: ImageSourcePropType | null} | null;
-  target: number | null;
-  set: number;
+  target: number | null; // reps in this set
+  set: number; // the set in progress, from 1
+  sets: number; // sets in the plan
+  stage: 'set' | 'rest';
+  restLeft: number; // seconds, while resting
+  restSec: number;
   paceMs: number | null;
   streak: number;
   bestDepth: number | null;
@@ -60,6 +66,10 @@ const EMPTY_WORKOUT: Workout = {
   celebration: null,
   target: null,
   set: 1,
+  sets: 1,
+  stage: 'set',
+  restLeft: 0,
+  restSec: 0,
   paceMs: null,
   streak: 0,
   bestDepth: null,
@@ -102,7 +112,12 @@ export const App = () => {
   const detector = useRef<Exercise | null>(null);
   const session = useRef<Session | null>(null);
   const rewards = useRef<RewardTracker | null>(null);
-  const sets = useRef<Partial<Record<ExerciseId, number>>>({});
+  // The workout plan (sets × reps, rest) and where we are in it.
+  const plan = useRef<Plan>(planFor('squat'));
+  const exerciseDef = useRef<ExerciseDef | null>(null);
+  const restTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const restEndsAt = useRef(0);
+  const restSaid = useRef(new Set<string>()); // rest lines already spoken this rest
   const screen = useRef<Screen>('pick');
   const socket = useRef<WebSocket | null>(null);
   // True while a coach request for the summary on screen is outstanding.
@@ -112,6 +127,7 @@ export const App = () => {
   const voiceNameReady = useRef<string | null>(null);
   const voiceNameAsked = useRef({name: '', at: 0});
   const nameFromPhone = useRef<(name: string) => void>(() => {});
+  const setDone = useRef<() => void>(() => {});
   // Speaks on the TV; if TV audio fails it switches itself to the phone (and the setting follows).
   const voice = useRef(
     new VoicePlayer(
@@ -136,21 +152,102 @@ export const App = () => {
   };
 
   const choose = (def: ExerciseDef) => {
+    stopRest();
+    exerciseDef.current = def;
     detector.current = def.create();
     awaitingCoach.current = false;
-    const target = profiles.current.activeProgress[def.id]?.target ?? null;
-    requestVoiceName(); // normally already ready; if not, it will be for the next set
+    plan.current = planFor(def.id, profiles.current.activeProgress[def.id]);
+    const {sets, reps: target, restSec} = plan.current;
+    requestVoiceName(); // normally already ready; if not, it will be for the next workout
     voiceCoach.current = new VoiceCoach(target, Math.random, voice.current.voiceName != null);
     voice.current.say(voiceCoach.current.start());
     session.current = startSession(def.id, Date.now());
     rewards.current = new RewardTracker(target);
     screen.current = 'workout';
-    sets.current[def.id] = (sets.current[def.id] ?? 0) + 1;
-    latest.current = {...EMPTY_WORKOUT, target, set: sets.current[def.id]!};
+    latest.current = {...EMPTY_WORKOUT, target, set: 1, sets, restSec};
     setWorkout(latest.current);
     setExercise(def);
     setPhase('active');
   };
+
+  // A set reached its rep count: rest before the next one, or end the workout after the last.
+  // Called from the socket effect through a ref, so it always sees this render's functions.
+  const completeSet = () => {
+    if (!session.current || screen.current !== 'workout') {
+      return;
+    }
+    endSet(session.current);
+    if (session.current.sets.length >= plan.current.sets) {
+      finish();
+      return;
+    }
+    detector.current = null; // frames keep coming during the rest; they don't count
+    restEndsAt.current = Date.now() + plan.current.restSec * 1000;
+    restSaid.current = new Set();
+    if (voiceCoach.current) {
+      voice.current.say(voiceCoach.current.restStart());
+    }
+    latest.current = {...latest.current, stage: 'rest', restLeft: plan.current.restSec, cue: null};
+    setWorkout(latest.current);
+    restTimer.current = setInterval(tickRest, REST_TICK_MS);
+  };
+
+  const tickRest = () => {
+    const left = Math.ceil((restEndsAt.current - Date.now()) / 1000);
+    if (left <= 0) {
+      startNextSet();
+      return;
+    }
+    const say = (key: string, clips: () => string[]) => {
+      if (!restSaid.current.has(key) && voiceCoach.current) {
+        restSaid.current.add(key);
+        voice.current.say(clips());
+      }
+    };
+    if (left <= Math.floor(plan.current.restSec / 2)) {
+      say('mid', () => voiceCoach.current!.restMid());
+    }
+    if (left <= 3) {
+      say(`count-${left}`, () => [`count-${left}`]);
+    }
+    if (left !== latest.current.restLeft) {
+      latest.current = {...latest.current, restLeft: left};
+      setWorkout(latest.current);
+    }
+  };
+
+  const startNextSet = () => {
+    stopRest();
+    if (screen.current !== 'workout' || !exerciseDef.current) {
+      return;
+    }
+    detector.current = exerciseDef.current.create(); // fresh: no half movement carries over
+    if (stats.current.lastFrameAt) {
+      stats.current.lastFrameAt = Date.now(); // the silence check starts over with the new set
+    }
+    if (voiceCoach.current) {
+      voice.current.say(voiceCoach.current.nextSet());
+    }
+    latest.current = {
+      ...latest.current,
+      stage: 'set',
+      set: latest.current.set + 1,
+      reps: 0,
+      metric: null,
+      cue: null,
+      restLeft: 0,
+    };
+    setWorkout(latest.current);
+  };
+
+  const stopRest = () => {
+    if (restTimer.current) {
+      clearInterval(restTimer.current);
+      restTimer.current = undefined;
+    }
+  };
+
+  setDone.current = completeSet;
 
   // Reward art for an exercise, avoiding the last one shown.
   const nextArt = (id: ExerciseId) => {
@@ -175,6 +272,10 @@ export const App = () => {
 
   const finish = () => {
     cancelUiUpdate();
+    stopRest();
+    if (screen.current !== 'workout') {
+      return; // already finished (the last set ends the workout by itself)
+    }
     if (voiceCoach.current) {
       voice.current.say(voiceCoach.current.finish());
       voiceCoach.current = null;
@@ -182,14 +283,20 @@ export const App = () => {
     detector.current = null;
     screen.current = 'summary';
     if (session.current) {
-      const result = coach(session.current);
+      endSet(session.current); // a set cut short still counts
+      const result = coach(session.current, plan.current);
       const done = session.current;
       const doneStats = sessionStats(done);
       profiles.current
-        .recordSession(done.exercise, done.reps.length, result.target, doneStats.bestDepth)
+        .recordSession(done.exercise, done.reps.length, result.target ?? plan.current.reps, doneStats.bestDepth)
         .then(() => setHistory(profiles.current.activeProgress))
         .catch(() => {}); // saving is best effort; the workout itself already happened
-      setSummaryStats({...doneStats, reps: done.reps.length, clean: done.reps.length - done.cues.slower});
+      setSummaryStats({
+        ...doneStats,
+        reps: done.reps.length,
+        clean: done.reps.length - done.cues.slower,
+        sets: done.sets,
+      });
       setSummaryArt(done.reps.length > 0 ? nextArt(done.exercise) : null); // a reward for finishing the set
       setSummary(result);
       setAiCoached(false);
@@ -307,8 +414,16 @@ export const App = () => {
       }
     };
 
+    const clearRestTimer = () => {
+      if (restTimer.current) {
+        clearInterval(restTimer.current);
+        restTimer.current = undefined;
+      }
+    };
+
     const phoneGone = () => {
       cancelUiUpdate();
+      clearRestTimer(); // a rest doesn't run on behind the pairing screen
       detector.current = null;
       stats.current.lastFrameAt = 0;
       // A phone that comes back (page reload, new phone) starts a new clock.
@@ -367,6 +482,9 @@ export const App = () => {
         // Lets the phone show the live count too.
         if (u.rep && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({action: 'status', reps: u.reps, exercise: session.current?.exercise}));
+        }
+        if (u.rep && session.current && currentSetReps(session.current) >= plan.current.reps) {
+          setDone.current();
         }
       }
       if (!uiTimer.current) {
@@ -429,7 +547,10 @@ export const App = () => {
     // The relay reports a phone that disconnects, but a phone that just stops sending
     // (camera paused, browser in the background) keeps its connection open.
     const watchdog = setInterval(() => {
-      if (stats.current.lastFrameAt && Date.now() - stats.current.lastFrameAt > PHONE_SILENT_MS) {
+      // The phone only sends while it sees a body, so a rest (stepping away for water) is silent
+      // on purpose. A real disconnect still arrives as "phone-left" from the relay.
+      const resting = latest.current.stage === 'rest' && screen.current === 'workout';
+      if (!resting && stats.current.lastFrameAt && Date.now() - stats.current.lastFrameAt > PHONE_SILENT_MS) {
         phoneGone();
       }
     }, 1000);
@@ -445,6 +566,7 @@ export const App = () => {
       closed = true;
       clearInterval(keepalive);
       clearInterval(watchdog);
+      clearRestTimer();
       cancelUiUpdate();
       if (reconnect) {
         clearTimeout(reconnect);
@@ -463,7 +585,14 @@ export const App = () => {
   const shownName = isRealName(player.name) ? player.name : null;
   let content: React.ReactNode;
   if (phase === 'active' && exercise) {
-    content = <WorkoutScreen exercise={exercise} w={workout} fps={fps} onFinish={finish} playerName={shownName} />;
+    content = <WorkoutScreen
+        exercise={exercise}
+        w={workout}
+        fps={fps}
+        onFinish={finish}
+        onSkipRest={startNextSet}
+        playerName={shownName}
+      />;
   } else if (phase === 'summary' && exercise && summary && summaryStats) {
     content = (
       <SummaryScreen

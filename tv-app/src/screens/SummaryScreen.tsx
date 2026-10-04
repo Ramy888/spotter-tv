@@ -6,7 +6,13 @@ import {FocusButton} from '../FocusButton';
 import {color, font} from '../theme';
 import {StatTile} from './shared';
 
-export type SummaryStats = {reps: number; paceMs: number | null; bestDepth: number | null; clean: number};
+export type SummaryStats = {
+  reps: number;
+  paceMs: number | null;
+  bestDepth: number | null;
+  clean: number;
+  sets: number[]; // reps in each set
+};
 
 export const SummaryScreen = ({
   exercise,
@@ -36,6 +42,12 @@ export const SummaryScreen = ({
         </Text>
         <Text style={styles.count}>{stats.reps}</Text>
         <Text style={styles.unit}>{exercise.unit.toUpperCase()}</Text>
+        {stats.sets.length ? (
+          <Text style={styles.sets} testID="sets-line">
+            <Text style={styles.setsLabel}>SETS </Text>
+            {stats.sets.join(' · ')}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.tiles}>
         <StatTile grow label="PACE" value={stats.paceMs == null ? '—' : `${(stats.paceMs / 1000).toFixed(1)} s`} />
@@ -98,6 +110,8 @@ const styles = StyleSheet.create({
   complete: {color: color.accent, fontFamily: font.bodyBold, fontSize: 20, letterSpacing: 3},
   count: {color: color.text, fontFamily: font.display, fontSize: 160, lineHeight: 150},
   unit: {color: color.text, fontFamily: font.display, fontSize: 52},
+  sets: {color: color.text, fontFamily: font.displayBold, fontSize: 30, marginTop: 6},
+  setsLabel: {color: color.textSecondary, fontFamily: font.bodyMedium, fontSize: 16, letterSpacing: 2},
   tiles: {flexDirection: 'row'},
   buttons: {flexDirection: 'row'},
   gap: {width: 16, height: 16},

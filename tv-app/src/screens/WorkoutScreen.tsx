@@ -17,8 +17,12 @@ export type WorkoutView = {
   metric: number | null;
   cue: Cue | null;
   celebration: {reward: Reward; id: number; art: ImageSourcePropType | null} | null;
-  target: number | null;
+  target: number | null; // reps in this set
   set: number;
+  sets: number;
+  stage: 'set' | 'rest';
+  restLeft: number;
+  restSec: number;
   paceMs: number | null;
   streak: number;
   bestDepth: number | null;
@@ -32,23 +36,29 @@ export const WorkoutScreen = ({
   w,
   fps,
   onFinish,
+  onSkipRest,
   playerName,
 }: {
   exercise: ExerciseDef;
   w: WorkoutView;
   fps: number;
   onFinish: () => void;
+  onSkipRest: () => void;
   playerName: string | null; // shown when the player has a real name
 }) => {
+  const resting = w.stage === 'rest';
   const goal = w.target ?? Math.max(5, w.reps);
-  const lit = Math.round((Math.min(w.reps, goal) / goal) * TICKS);
+  // Working: the ring fills with reps. Resting: it empties as the countdown runs.
+  const lit = resting
+    ? Math.round((w.restLeft / Math.max(1, w.restSec)) * TICKS)
+    : Math.round((Math.min(w.reps, goal) / goal) * TICKS);
   const angleBased = exercise.id !== 'jumping-jack';
   return (
     <View style={styles.root}>
       <View style={styles.left}>
         <View>
           <Text style={styles.small} testID="set-label">
-            {playerName ? `${playerName} · ` : ''}Set {w.set}
+            {playerName ? `${playerName} · ` : ''}Set {w.set} of {w.sets}
           </Text>
           <Text style={styles.name}>{exercise.name.toUpperCase()}</Text>
         </View>
@@ -68,20 +78,34 @@ export const WorkoutScreen = ({
 
       <View style={styles.center}>
         <TickRing size={RING} lit={lit} count={TICKS} tick={8}>
-          <Text style={styles.count} accessibilityLabel={`${w.reps} ${exercise.unit}`}>
-            {w.reps}
-          </Text>
-          <Text style={styles.ofTarget}>
-            {w.target != null ? (
-              <>
-                of <Text style={styles.ofTargetNumber}>{w.target}</Text> target
-              </>
-            ) : (
-              exercise.unit
-            )}
-          </Text>
+          {resting ? (
+            <View style={styles.rest} testID="rest">
+              <Text style={styles.restLabel}>REST</Text>
+              <Text style={styles.count} testID="rest-left" accessibilityLabel={`${w.restLeft} seconds of rest`}>
+                {w.restLeft}
+              </Text>
+              <Text style={styles.ofTarget}>
+                Next: set <Text style={styles.ofTargetNumber}>{w.set + 1}</Text> of {w.sets} · {w.target} {exercise.unit}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.count} accessibilityLabel={`${w.reps} ${exercise.unit}`}>
+                {w.reps}
+              </Text>
+              <Text style={styles.ofTarget}>
+                {w.target != null ? (
+                  <>
+                    of <Text style={styles.ofTargetNumber}>{w.target}</Text> {exercise.unit}
+                  </>
+                ) : (
+                  exercise.unit
+                )}
+              </Text>
+            </>
+          )}
         </TickRing>
-        {w.cue ? (
+        {w.cue && !resting ? (
           <View style={styles.cue}>
             <Text style={styles.cueText} testID="cue">
               {CUE_TEXT[w.cue].toUpperCase()}
@@ -109,7 +133,13 @@ export const WorkoutScreen = ({
         </View>
         <View>
           <Text style={styles.fps}>{fps} frames/s</Text>
-          <FocusButton label="Finish" onPress={onFinish} preferred testID="finish" />
+          {resting ? (
+            <>
+              <FocusButton label="Skip rest" onPress={onSkipRest} preferred testID="skip-rest" />
+              <View style={styles.gap} />
+            </>
+          ) : null}
+          <FocusButton label="Finish" onPress={onFinish} preferred={!resting} testID="finish" />
         </View>
       </View>
     </View>
@@ -126,6 +156,8 @@ const styles = StyleSheet.create({
   },
   left: {width: 250, justifyContent: 'space-between'},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
+  rest: {alignItems: 'center'},
+  restLabel: {color: color.accent, fontFamily: font.bodyBold, fontSize: 22, letterSpacing: 4},
   // Top-right of the ring, outside the count (see design-system.md §6).
   stickerSlot: {position: 'absolute', top: 0, right: 16},
   right: {width: 250, justifyContent: 'space-between'},

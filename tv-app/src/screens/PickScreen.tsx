@@ -2,6 +2,7 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {EXERCISES, ExerciseDef, ExerciseId} from '../exercises';
 import {FocusButton} from '../FocusButton';
+import {planFor} from '../plan';
 import {Progress} from '../profiles';
 import {color, font} from '../theme';
 import {StatusPill, Wordmark, screen} from './shared';
@@ -14,11 +15,11 @@ const MUSCLES: Record<ExerciseId, string> = {
 
 export type History = Progress;
 
+// The workout this card starts ("3 × 12 · 60 s rest"), plus last time's total once there is one.
 function historyLine(def: ExerciseDef, h: History[ExerciseId]): string {
-  if (!h) {
-    return 'New: aim for 5';
-  }
-  return h.target != null ? `Last time ${h.last} · target ${h.target}` : `Last time ${h.last}`;
+  const plan = planFor(def.id, h);
+  const sets = `${plan.sets} × ${plan.reps}`;
+  return h ? `${sets} · last time ${h.last}` : `${sets} · ${plan.restSec} s rest`;
 }
 
 export const PickScreen = ({

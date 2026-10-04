@@ -41,6 +41,19 @@ export class VoiceCoach {
     return [this.named ? 'name-start' : this.pick('start')];
   }
 
+  // Between sets. Until dedicated rest lines exist, rest uses praise and the next set re-greets.
+  restStart(): string[] {
+    return [this.pick('praise')];
+  }
+
+  restMid(): string[] {
+    return [this.pick('praise')];
+  }
+
+  nextSet(): string[] {
+    return this.start();
+  }
+
   finish(): string[] {
     return [this.named ? 'name-finish' : this.pick('finish')];
   }

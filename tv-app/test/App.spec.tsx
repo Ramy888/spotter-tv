@@ -84,7 +84,7 @@ describe('App', () => {
     }
     act(() => jest.advanceTimersByTime(200));
     expect(screen.getByText('1')).toBeTruthy();
-    expect(screen.getByText('squats')).toBeTruthy();
+    expect(screen.getByText('of 12 squats')).toBeTruthy(); // reps in this set
     jest.useRealTimers();
   });
 
@@ -210,7 +210,8 @@ describe('App', () => {
     fireEvent.press(screen.getByTestId('finish'));
     expect(screen.getByTestId('summary-headline')).toHaveTextContent('5 squats done');
     expect(screen.getByText(/Steady pace/)).toBeTruthy();
-    expect(screen.getByText('7 squats with the same form.')).toBeTruthy(); // shown under the NEXT TIME label
+    // Ended in the first set: same reps per set next time (shown under the NEXT TIME label).
+    expect(screen.getByText('12 squats per set, every rep to full depth.')).toBeTruthy();
     jest.useRealTimers();
   });
 
@@ -220,7 +221,7 @@ describe('App', () => {
     startSquats(screen);
     fireEvent.press(screen.getByTestId('finish'));
     fireEvent.press(screen.getByTestId('again'));
-    expect(screen.getByText(/Set\s*2/)).toBeTruthy(); // the second set of the same exercise
+    expect(screen.getByTestId('set-label')).toHaveTextContent('Set 1 of 3'); // the same workout from its first set
     expect(screen.getByLabelText('0 squats')).toBeTruthy();
     jest.useRealTimers();
   });
@@ -278,6 +279,82 @@ describe('App', () => {
     fireEvent.press(screen.getByTestId('finish'));
     expect(screen.getByTestId('reward-art')).toBeTruthy();
     jest.useRealTimers();
+  });
+
+  describe('sets and rest', () => {
+    const advance = (ms: number) => {
+      for (let t = 0; t < ms; t += 250) {
+        act(() => jest.advanceTimersByTime(250));
+      }
+    };
+
+    it('ends a set at its rep count and rests with a countdown; frames during rest do not count', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen); // a new player: 3 sets of 12, 60 s rest
+      expect(screen.getByTestId('set-label')).toHaveTextContent('Set 1 of 3');
+      const t = doReps(12);
+      expect(screen.getByTestId('rest')).toBeTruthy();
+      expect(screen.getByTestId('rest-left')).toHaveTextContent('60');
+      doReps(2, t); // still moving during the rest
+      advance(10_000); // then out of view: the phone sends nothing, and the TV keeps resting
+      expect(screen.getByTestId('rest-left')).toHaveTextContent('50');
+      expect(screen.getByTestId('set-label')).toHaveTextContent('Set 1 of 3');
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      expect(screen.getByLabelText('0 squats')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('finish'));
+      expect(screen.getByTestId('summary-headline')).toHaveTextContent('12 squats done'); // not 14
+      expect(screen.getByTestId('sets-line')).toHaveTextContent('SETS 12');
+      jest.useRealTimers();
+    });
+
+    it('starts the next set when the countdown reaches zero', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      doReps(12);
+      advance(61_000);
+      expect(screen.queryByTestId('rest')).toBeNull();
+      expect(screen.getByTestId('set-label')).toHaveTextContent('Set 2 of 3');
+      expect(screen.getByLabelText('0 squats')).toBeTruthy();
+      jest.useRealTimers();
+    });
+
+    it('can skip the rest', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      doReps(12);
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      expect(screen.getByTestId('set-label')).toHaveTextContent('Set 2 of 3');
+      jest.useRealTimers();
+    });
+
+    it('ends the workout by itself after the last set, with each set on the summary', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      let t = doReps(12);
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      t = doReps(12, t);
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      doReps(12, t);
+      expect(screen.getByTestId('summary-headline')).toHaveTextContent('36 squats done');
+      expect(screen.getByTestId('sets-line')).toHaveTextContent('SETS 12 · 12 · 12');
+      jest.useRealTimers();
+    });
+
+    it('can finish during a rest; the summary shows the sets done', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      doReps(12);
+      fireEvent.press(screen.getByTestId('finish'));
+      expect(screen.getByTestId('sets-line')).toHaveTextContent('SETS 12');
+      advance(70_000); // the rest timer must not start another set behind the summary
+      expect(screen.getByTestId('summary-headline')).toBeTruthy();
+      jest.useRealTimers();
+    });
   });
 
   const aiSummary = {
@@ -418,7 +495,7 @@ describe('App', () => {
     await flushAsync();
     expect(screen.getByTestId('player')).toHaveTextContent(/Ramy · switch/);
     fireEvent.press(screen.getByTestId('pick-squat'));
-    expect(screen.getByTestId('set-label')).toHaveTextContent('Ramy · Set 1');
+    expect(screen.getByTestId('set-label')).toHaveTextContent('Ramy · Set 1 of 3');
     fireEvent.press(screen.getByTestId('finish'));
     await flushAsync();
     expect(screen.getByTestId('complete-label')).toHaveTextContent('NICE WORK, RAMY');
@@ -438,7 +515,7 @@ describe('App', () => {
     await flushAsync();
     expect(screen.getByTestId('player')).toHaveTextContent(/Player 2 · switch/);
     fireEvent.press(screen.getByTestId('pick-squat'));
-    expect(screen.getByTestId('set-label')).toHaveTextContent(/^Set 1$/);
+    expect(screen.getByTestId('set-label')).toHaveTextContent(/^Set 1 of 3$/);
     jest.useRealTimers();
   });
 
@@ -600,7 +677,7 @@ describe('App', () => {
     fireEvent.press(first.getByTestId('finish'));
     await flushAsync();
     fireEvent.press(first.getByTestId('new-workout'));
-    expect(first.getByTestId('pick-squat')).toHaveTextContent(/Last time 1/);
+    expect(first.getByTestId('pick-squat')).toHaveTextContent(/3 × 12 · last time 1/);
     first.unmount();
 
     const second = render(<App />); // the app restarts; storage keeps the progress
@@ -608,7 +685,7 @@ describe('App', () => {
     deliver({type: 'session', code: 'ABC234'});
     deliver({...frame(0), t: 0});
     act(() => jest.advanceTimersByTime(200));
-    expect(second.getByTestId('pick-squat')).toHaveTextContent(/Last time 1/);
+    expect(second.getByTestId('pick-squat')).toHaveTextContent(/3 × 12 · last time 1/);
     jest.useRealTimers();
   });
 });

@@ -9,7 +9,8 @@ export type KeyValueStore = {
 
 export type ExerciseProgress = {
   last: number; // reps in the most recent session
-  target: number | null; // what the coach suggested for next time
+  target: number | null; // older saves: a total for one long set (no longer used for the plan)
+  repsPerSet?: number; // the next workout's reps per set (see plan.ts)
   bestDepth: number | null; // deepest bottom angle ever (lower is deeper)
   sessions: number;
 };
@@ -159,15 +160,16 @@ export class ProfileStore {
     await this.loadProgress();
   }
 
-  // Records a finished session for the active player.
-  async recordSession(exercise: ExerciseId, reps: number, target: number | null, bestDepth: number | null) {
+  // Records a finished workout for the active player: total reps, and reps per set for next time.
+  async recordSession(exercise: ExerciseId, reps: number, repsPerSet: number, bestDepth: number | null) {
     const prev = this.progress[exercise];
     const best = [prev?.bestDepth, bestDepth].filter((d): d is number => d != null);
     this.progress = {
       ...this.progress,
       [exercise]: {
         last: reps,
-        target,
+        target: null,
+        repsPerSet,
         bestDepth: best.length ? Math.min(...best) : null,
         sessions: (prev?.sessions ?? 0) + 1,
       },

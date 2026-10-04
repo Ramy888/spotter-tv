@@ -1,13 +1,14 @@
 // Rule-based coach: turns a finished session into a short, specific summary.
 // Kept behind this one function so an LLM coach (Bedrock) can replace it without touching the UI.
 import {EXERCISES} from './exercises';
+import {Plan, nextRepsPerSet} from './plan';
 import {Session} from './session';
 
 export type CoachSummary = {
   headline: string;
   insights: string[]; // 0-4 short, specific observations
   next: string; // one concrete suggestion for the next session
-  target: number | null; // rep count for the next session, used to celebrate hitting it
+  target: number | null; // reps per set for the next workout
 };
 
 const DEPTH_FADE_DEG = 8; // second half this much shallower (on average) counts as fading
@@ -17,7 +18,8 @@ const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export function coach(session: Session): CoachSummary {
+// Numbers stay few on purpose: an AI rewrite must repeat every one of them (infra/lambda/coach.mjs).
+export function coach(session: Session, plan: Plan): CoachSummary {
   const def = EXERCISES.find((e) => e.id === session.exercise)!;
   const unit = def.unit; // e.g. "squats"
   const count = session.reps.length;
@@ -32,8 +34,8 @@ export function coach(session: Session): CoachSummary {
           : session.cues.deeper > 0
           ? [`${plural(session.cues.deeper, 'rep')} didn't reach full depth.`]
           : [],
-      next: `Try 5 ${unit} at a slow, controlled pace.`,
-      target: 5,
+      next: `Next time: ${plan.reps} ${unit} per set at a slow, controlled pace.`,
+      target: plan.reps,
     };
   }
 
@@ -45,11 +47,17 @@ export function coach(session: Session): CoachSummary {
     const second = avg(depths.slice(half));
     if (second - first >= DEPTH_FADE_DEG) {
       insights.push(
-        `Your depth faded in the second half (${Math.round(first)}° → ${Math.round(second)}° at the bottom). That's fatigue: rest 30 s before the next set.`,
+        `Your depth faded in the second half (${Math.round(first)}° → ${Math.round(second)}° at the bottom). That's fatigue: take your full rest between sets.`,
       );
     } else {
       insights.push(`Depth stayed consistent: about ${Math.round(avg(depths))}° at the bottom.`);
     }
+  }
+
+  // Sets: only worth saying when the workout ended early.
+  const fullSets = session.sets.filter((reps) => reps >= plan.reps).length;
+  if (fullSets < plan.sets) {
+    insights.push(`You finished ${fullSets} of ${plural(plan.sets, 'set')}.`);
   }
 
   // Tempo.
@@ -68,11 +76,11 @@ export function coach(session: Session): CoachSummary {
   }
 
   const clean = session.cues.deeper === 0 && session.cues.slower === 0;
-  const target = clean && count >= 5 ? count + 2 : count;
+  const target = nextRepsPerSet(plan, session.sets, clean);
   const next =
-    target > count
-      ? `Next time: ${target} ${unit} with the same form.`
-      : `Next time: ${count} ${unit}, every rep to full depth.`;
+    target > plan.reps
+      ? `Next time: ${target} ${unit} per set with the same form.`
+      : `Next time: ${target} ${unit} per set, every rep to full depth.`;
 
   return {
     headline: `${plural(count, def.unit.replace(/s$/, ''), unit)} done`,
