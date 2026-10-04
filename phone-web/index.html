@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A0B10">
 <title>Spotter camera</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%20width%3D%22512%22%20height%3D%22512%22%3E%20%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22112%22%20fill%3D%22%230A0B10%22/%3E%20%3Ccircle%20cx%3D%22256%22%20cy%3D%22256%22%20r%3D%22196%22%20fill%3D%22none%22%20stroke%3D%22%232A2E40%22%20stroke-width%3D%2244%22/%3E%3Cpath%20d%3D%22M256%2060%20A196%20196%200%201%201%2063.5%20292.7%22%20fill%3D%22none%22%20stroke%3D%22%23C8FF3D%22%20stroke-width%3D%2244%22%20stroke-linecap%3D%22round%22/%3E%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%23F4F5F7%22%20stroke-width%3D%2240%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M240%20222%20L202%20304%20L300%20302%20L290%20388%22/%3E%3Cpath%20d%3D%22M236%20242%20L344%20236%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22254%22%20cy%3D%22172%22%20r%3D%2242%22%20fill%3D%22%23F4F5F7%22/%3E%20%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,800..900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -17,7 +19,7 @@
   .screen { max-width: 480px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
   #start { padding: max(48px, env(safe-area-inset-top)) 24px 32px; justify-content: space-between; gap: 28px; }
   .wordmark { display: flex; align-items: center; gap: 10px; font-size: 24px; letter-spacing: 1px; }
-  .mark { width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+  .mark { width: 30px; height: 30px; display: inline-flex; }
   .pill { align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; background: var(--surface);
           border: 1px solid var(--line); font-size: 15px; font-weight: 500; }
   .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--accent); }
@@ -69,7 +71,7 @@
 <body>
 <section id="start" class="screen">
   <div style="display: flex; flex-direction: column; gap: 26px">
-    <div class="wordmark display"><span class="mark"></span>Spotter</div>
+    <div class="wordmark display"><span class="mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="30" height="30" aria-hidden="true"> <circle cx="256" cy="256" r="196" fill="none" stroke="#2A2E40" stroke-width="44"/><path d="M256 60 A196 196 0 1 1 63.5 292.7" fill="none" stroke="#C8FF3D" stroke-width="44" stroke-linecap="round"/> <g fill="none" stroke="#F4F5F7" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"><path d="M240 222 L202 304 L300 302 L290 388"/><path d="M236 242 L344 236"/></g><circle cx="254" cy="172" r="42" fill="#F4F5F7"/> </svg></span>Spotter</div>
     <div id="found" class="pill" hidden><span class="dot"></span><span id="foundText"></span></div>
     <h1 class="display">Let's<br>train.</h1>
     <p class="copy">Your phone becomes the camera. Your TV counts every rep and coaches you out loud.</p>

@@ -4,7 +4,7 @@ import {CoachSummary} from '../coach';
 import {ExerciseDef} from '../exercises';
 import {FocusButton} from '../FocusButton';
 import {color, font} from '../theme';
-import {StatTile} from './shared';
+import {LOGO_MARK, StatTile} from './shared';
 
 export type SummaryStats = {
   reps: number;
@@ -66,7 +66,7 @@ export const SummaryScreen = ({
     <View style={styles.right}>
       <View style={styles.coachCard}>
         <View style={styles.coachHeader}>
-          <View style={styles.coachMark} />
+          <Image source={LOGO_MARK} style={styles.coachMark} />
           <Text style={styles.coachLabel}>COACH</Text>
           {aiCoached ? (
             <Text style={styles.aiLabel} testID="ai-label">
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     borderColor: color.line,
   },
   coachHeader: {flexDirection: 'row', alignItems: 'center', marginBottom: 20},
-  coachMark: {width: 36, height: 36, borderRadius: 10, backgroundColor: color.accent, marginRight: 12},
+  coachMark: {width: 36, height: 36, marginRight: 12},
   coachLabel: {color: color.text, fontFamily: font.bodyBold, fontSize: 18, letterSpacing: 2, flex: 1},
   aiLabel: {color: color.accent, fontFamily: font.bodyMedium, fontSize: 18},
   headline: {color: color.text, fontFamily: font.displayBold, fontSize: 40, lineHeight: 44, marginBottom: 14},

@@ -41,9 +41,17 @@ async function nameAudio(path) {
   return { body: Buffer.from(item.audio).toString("base64"), type: "audio/mpeg", cache: "max-age=86400", base64: true };
 }
 
+// The phone's home-screen icon (brand/, rendered by brand/render.mjs).
+function icon(path) {
+  if (path !== "/apple-touch-icon.png") return undefined;
+  const file = new URL("./public/apple-touch-icon.png", import.meta.url);
+  if (!existsSync(file)) return undefined;
+  return { body: readFileSync(file).toString("base64"), type: "image/png", cache: "max-age=86400", base64: true };
+}
+
 export async function handler(event) {
   const isGet = event.requestContext?.http?.method === "GET";
-  const route = isGet ? routes[event.rawPath] ?? audio(event.rawPath) ?? (await nameAudio(event.rawPath)) : undefined;
+  const route = isGet ? routes[event.rawPath] ?? audio(event.rawPath) ?? icon(event.rawPath) ?? (await nameAudio(event.rawPath)) : undefined;
   if (!route) return { statusCode: 404, headers: { "content-type": "text/plain" }, body: "not found" };
   return {
     statusCode: 200,

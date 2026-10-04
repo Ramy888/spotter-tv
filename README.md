@@ -1,3 +1,5 @@
+<p align="center"><img src="brand/png/logo-256.png" width="128" alt="Spotter logo: a squatting figure inside a ring of progress ticks"></p>
+
 # Spotter
 
 **Your phone is the camera. Your TV is the coach.**
@@ -93,6 +95,7 @@ flowchart LR
 | `voice/` | Coach phrases (`phrases.json`) and the Polly clip generator |
 | `reward-art/` | Prompts and a local Workers AI helper that made the reward stickers (reviewed by hand, then bundled in `tv-app/assets/rewards/`) |
 | `docs/design-system.md` | The "Arena" design system |
+| `brand/` | The logo (SVG sources), the PNG renders, and the store images |
 | `docs/friction-log.md` | Friction we hit with Vega and AWS, for the hackathon feedback |
 | `spikes/` | Early experiments (local dev relay) |
 

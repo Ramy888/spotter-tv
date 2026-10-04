@@ -157,6 +157,7 @@ The remote has no pointer, so focus is the whole interaction model. It is implem
 
 | Component | File | Notes |
 |---|---|---|
+| Logo | `brand/` (see `brand/README.md`) | A squat inside the tick ring, 17 of 24 ticks lit. Fire TV launcher icon, TV wordmark and coach card, phone header, browser tab and home-screen icon, store images. Under 48 px use `logo-small.svg` (solid arc). |
 | `Stage` | `tv-app/src/Stage.tsx` | 1280 × 720 canvas, scaled to the screen |
 | `FocusButton` | `tv-app/src/FocusButton.tsx` | Button, pill (`pill`) or card (`children`) |
 | `TickRing` | `tv-app/src/TickRing.tsx` | 40 ticks drawn with rotated Views (no SVG on Vega). Lit ticks are volt and longer. New ticks light one by one, led by a white tick, within 450 ms per rep. Used around the count and around the pairing QR. |

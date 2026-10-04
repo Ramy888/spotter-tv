@@ -1,10 +1,13 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
 import {color, font} from '../theme';
+
+// The Spotter mark (brand/logo-mark-transparent.svg): a squat inside the tick ring.
+export const LOGO_MARK = require('../../assets/brand/logo-mark.png');
 
 export const Wordmark = () => (
   <View style={styles.wordmark}>
-    <View style={styles.mark} />
+    <Image source={LOGO_MARK} style={styles.mark} accessibilityIgnoresInvertColors />
     <Text style={styles.wordmarkText}>SPOTTER</Text>
   </View>
 );
@@ -31,7 +34,7 @@ export const screen = StyleSheet.create({
 
 const styles = StyleSheet.create({
   wordmark: {flexDirection: 'row', alignItems: 'center'},
-  mark: {width: 14, height: 14, borderRadius: 4, backgroundColor: color.accent, marginRight: 12},
+  mark: {width: 34, height: 34, marginRight: 10},
   wordmarkText: {color: color.text, fontFamily: font.display, fontSize: 30, letterSpacing: 1},
   pill: {
     flexDirection: 'row',

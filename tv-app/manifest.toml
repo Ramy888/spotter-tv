@@ -2,6 +2,7 @@ schema-version = 1
 
 [package]
 title = "Spotter"
+icon = "@image/spotter_icon.png" # 512×512, made from brand/logo-mark.svg
 version = "0.1.0"
 id = "com.spotter.tv"
 

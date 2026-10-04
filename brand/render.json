@@ -1,0 +1,10 @@
+[
+  {"svg": "logo-mark.svg", "width": 512, "height": 512, "out": "tv-app/assets/image/spotter_icon.png"},
+  {"svg": "logo-small-transparent.svg", "width": 96, "height": 96, "out": "tv-app/assets/brand/logo-mark.png"},
+  {"svg": "logo-mark.svg", "width": 512, "height": 512, "out": "brand/png/logo-512.png"},
+  {"svg": "logo-mark.svg", "width": 256, "height": 256, "out": "brand/png/logo-256.png"},
+  {"svg": "logo-mark.svg", "width": 114, "height": 114, "out": "brand/png/store-small-icon-114.png"},
+  {"svg": "logo-small.svg", "width": 180, "height": 180, "out": "phone-web/apple-touch-icon.png"},
+  {"html": "store-icon.html", "width": 1280, "height": 720, "out": "brand/png/store-app-icon-1280x720.png"},
+  {"html": "store-background.html", "width": 1920, "height": 1080, "out": "brand/png/store-background-1920x1080.png"}
+]

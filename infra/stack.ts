@@ -84,6 +84,7 @@ class SpotterRelayStack extends Stack {
     const siteDir = fileURLToPath(new URL("./site", import.meta.url));
     mkdirSync(`${siteDir}/public`, { recursive: true });
     cpSync(fileURLToPath(new URL("../phone-web/index.html", import.meta.url)), `${siteDir}/public/index.html`);
+    cpSync(fileURLToPath(new URL("../phone-web/apple-touch-icon.png", import.meta.url)), `${siteDir}/public/apple-touch-icon.png`);
     cpSync(fileURLToPath(new URL("../voice/clips", import.meta.url)), `${siteDir}/public/audio`, { recursive: true });
     cpSync(fileURLToPath(new URL("../voice/clips.json", import.meta.url)), `${siteDir}/public/audio/clips.json`);
     cpSync(fileURLToPath(new URL("./lambda/voiceNames.mjs", import.meta.url)), `${siteDir}/voiceNames.mjs`);
