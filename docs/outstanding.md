@@ -17,6 +17,8 @@ Open work, newest first. Remove an item when it's done.
 3. **A rep counter:** a big condensed number inside the ring, like a scoreboard.
 4. **Phone-to-TV link:** two rounded rectangles (phone, TV) joined by an arc of ticks.
 
+**Concepts (2026-10-04):** `brand/concepts/sheet.png`: A. Ring + S, B. Spotter's eye, C. Scoreboard, D. Phone to TV, E. The spot. Sources: `brand/concepts/make-concepts.py`.
+
 **Where it changes:** everything in `brand/README.md` → "Where it's used": the Fire TV launcher icon, the TV wordmark and coach card, the phone page header, favicon and home-screen icon, the README, and the store images.
 
 **Store:** Spotter was submitted to the Amazon Appstore on 2026-10-04 with the current logo. A new logo means an app update: a new build with `build-number` raised to 2 in `tv-app/manifest.toml`, plus new icon, background and featured images in the console.
