@@ -161,6 +161,7 @@ The remote has no pointer, so focus is the whole interaction model. It is implem
 | `FocusButton` | `tv-app/src/FocusButton.tsx` | Button, pill (`pill`) or card (`children`) |
 | `TickRing` | `tv-app/src/TickRing.tsx` | 40 ticks drawn with rotated Views (no SVG on Vega). Lit ticks are volt and longer. New ticks light one by one, led by a white tick, within 450 ms per rep. Used around the count and around the pairing QR. |
 | `CelebrationBurst` / `CelebrationBadge` | `tv-app/src/Celebration.tsx` | Emoji rising beside the count plus a volt badge ("🔥 Clean streak ×5"). 1.5 s; only opacity and position animate, on the native driver. |
+| `RewardSticker` and summary art | `tv-app/src/Celebration.tsx`, `src/rewardArt.ts` | Funny cartoon stickers, 4 per exercise, in a 4 px volt frame, tilted 6–8°. A big reward (target, streak, deepest) pops one beside the ring for 1.5 s, never over the count; the summary shows one beside the count. Made with Workers AI ahead of time and reviewed by hand (`reward-art/`): adult characters, natural skin tones, lime sportswear, no text or symbols, nothing resembling existing characters. |
 | `QrCode` | `tv-app/src/QrCode.tsx` | Drawn with Views, dark on white, 4-module quiet zone |
 | `Wordmark`, `StatusPill`, `StatTile` | `tv-app/src/screens/shared.tsx` | `StatTile grow` shares a row's width |
 | Screens | `tv-app/src/screens/` | Pair, Pick, Who's training, Name, Workout, Summary |

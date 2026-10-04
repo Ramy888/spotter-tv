@@ -11,7 +11,7 @@ Built for the Amazon "Build, Ship, Shape" Developer Hackathon: **Fire TV track (
 - **Pair in one scan.** The TV shows a QR code and a 6-character code. The phone opens a web page, no install, and starts its camera.
 - **Counts reps live** for squats, lunges and jumping jacks, from on-phone pose tracking (MediaPipe). A rep only counts at full depth; half reps get a "Go deeper" cue.
 - **Talks to you.** An Amazon Polly voice counts reps, cues form, and calls you by name ("Let's go, Ramy!", "Last one, Ramy!"), on the TV or on the phone.
-- **Celebrates.** Streaks, a new deepest rep and hitting your target get a burst and a badge, and the ring around the count fills tick by tick with each rep.
+- **Celebrates.** Streaks, a new deepest rep and hitting your target get a burst, a badge and a funny cartoon sticker for the exercise, and the ring around the count fills tick by tick with each rep. Every finished set ends with a sticker too.
 - **Coaches after the set.** A rule-based summary (pace, depth, clean reps, a target for next time), optionally rewritten by an AI model that is not allowed to invent numbers.
 - **Remembers you, without an account.** Up to 4 players per TV, each with a name and their progress, saved on the TV only.
 
@@ -90,6 +90,7 @@ flowchart LR
 | `infra/` | AWS CDK stack (`stack.ts`), Lambdas (`lambda/`, `site/`), end-to-end scripts (`e2e*.mjs`), simulated phone and TV |
 | `coach-worker/` | Cloudflare Worker for the AI coach rewrite |
 | `voice/` | Coach phrases (`phrases.json`) and the Polly clip generator |
+| `reward-art/` | Prompts and a local Workers AI helper that made the reward stickers (reviewed by hand, then bundled in `tv-app/assets/rewards/`) |
 | `docs/design-system.md` | The "Arena" design system |
 | `docs/friction-log.md` | Friction we hit with Vega and AWS, for the hackathon feedback |
 | `spikes/` | Early experiments (local dev relay) |
