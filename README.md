@@ -1,4 +1,4 @@
-<p align="center"><img src="brand/png/logo-256.png" width="128" alt="Spotter logo: a squatting figure inside a ring of progress ticks"></p>
+<p align="center"><img src="brand/png/logo-256.png" width="128" alt="Spotter logo: three rising chevrons, the top one volt green"></p>
 
 # Spotter
 

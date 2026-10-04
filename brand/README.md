@@ -1,18 +1,19 @@
 # Spotter brand
 
-**The mark:** a figure in a squat inside a ring of ticks, the same ring that fills around the rep count on the TV. 17 of 24 ticks are lit: a workout in progress.
+**The mark: "Level up".** Three chevrons stacked and rising: the lowest dim, the middle white, the top volt. Every rep moves you up. (It replaced a squatting figure in a tick ring, which read like a restroom or accessibility sign; the other concepts are in `concepts/`.)
 
 | File | Use |
 |---|---|
 | `logo-mark.svg` | App icon: the mark on a dark rounded square |
-| `logo-mark-transparent.svg` | The full mark on dark backgrounds (store background) |
+| `logo-mark-transparent.svg` | The mark on dark backgrounds (store images) |
+| `logo-mark-square.svg` | Opaque full square, for the 512 and 114 px store icons |
 | `logo-small-transparent.svg` | The small mark inside the apps: TV wordmark and coach card, phone page header |
-| `logo-small.svg` | 16–48 px (browser tab): a solid arc instead of ticks, which turn to noise when tiny |
+| `logo-small.svg` | 16–64 px (browser tab, home-screen icon): thicker strokes, which stay crisp when tiny |
 | `make-svg.py` | Writes the three SVGs (`python3 make-svg.py`) |
 | `render.mjs` + `render.json` | Renders every PNG below with headless Chrome |
 | `store-icon.html`, `store-background.html` | Layouts for the Fire TV store images |
 
-**Colors:** volt `#C8FF3D` (lit ticks), line `#2A2E40` (unlit ticks), text `#F4F5F7` (figure), ground `#0A0B10`. **Type:** Archivo Condensed Black for "SPOTTER".
+**Colors:** volt `#C8FF3D` (top chevron), text `#F4F5F7` (middle), `#3A3F55` (lowest), ground `#0A0B10`. **Type:** Archivo Condensed Black for "SPOTTER".
 
 ## Where it's used
 
