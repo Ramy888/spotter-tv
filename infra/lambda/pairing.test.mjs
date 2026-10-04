@@ -79,3 +79,16 @@ test("parseMessage accepts a name typed on the phone, tidied, in any script", ()
   assert.equal(parseMessage('{"action":"name","name":"a\\u0007b"}'), null);
   assert.equal(parseMessage('{"action":"name","name":42}'), null);
 });
+
+test("parseMessage passes set and rest progress in a status update, and drops bad values", () => {
+  assert.deepEqual(
+    parseMessage('{"action":"status","reps":7,"exercise":"squat","set":2,"sets":3,"stage":"rest","restLeft":45}'),
+    { type: "status", reps: 7, exercise: "squat", set: 2, sets: 3, stage: "rest", restLeft: 45 },
+  );
+  // Old TVs send only reps and exercise.
+  assert.deepEqual(parseMessage('{"action":"status","reps":7,"exercise":"squat"}'), { type: "status", reps: 7, exercise: "squat" });
+  assert.equal(parseMessage('{"action":"status","reps":7,"exercise":"squat","set":0,"sets":3}'), null);
+  assert.equal(parseMessage('{"action":"status","reps":7,"exercise":"squat","set":4,"sets":3}'), null);
+  assert.equal(parseMessage('{"action":"status","reps":7,"exercise":"squat","stage":"nap"}'), null);
+  assert.equal(parseMessage('{"action":"status","reps":7,"exercise":"squat","stage":"rest","restLeft":9999}'), null);
+});

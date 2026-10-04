@@ -16,7 +16,7 @@ import {SummaryScreen, SummaryStats} from './screens/SummaryScreen';
 import {NameScreen} from './screens/NameScreen';
 import {WhoScreen} from './screens/WhoScreen';
 import {WorkoutScreen} from './screens/WorkoutScreen';
-import {Plan, planFor} from './plan';
+import {Plan, REST_CHOICES, planFor} from './plan';
 import {Session, currentSetReps, endSet, recordUpdate, startSession} from './session';
 import {VoiceCoach} from './voice';
 import {VoiceMode, VoicePlayer} from './voicePlayer';
@@ -156,7 +156,8 @@ export const App = () => {
     exerciseDef.current = def;
     detector.current = def.create();
     awaitingCoach.current = false;
-    plan.current = planFor(def.id, profiles.current.activeProgress[def.id]);
+    const restChoice = profiles.current.profiles.length ? profiles.current.active.restSec : undefined; // undefined until loaded
+    plan.current = planFor(def.id, profiles.current.activeProgress[def.id], restChoice);
     const {sets, reps: target, restSec} = plan.current;
     requestVoiceName(); // normally already ready; if not, it will be for the next workout
     voiceCoach.current = new VoiceCoach(target, Math.random, voice.current.voiceName != null);
@@ -189,6 +190,7 @@ export const App = () => {
     }
     latest.current = {...latest.current, stage: 'rest', restLeft: plan.current.restSec, cue: null};
     setWorkout(latest.current);
+    sendStatus();
     restTimer.current = setInterval(tickRest, REST_TICK_MS);
   };
 
@@ -213,6 +215,7 @@ export const App = () => {
     if (left !== latest.current.restLeft) {
       latest.current = {...latest.current, restLeft: left};
       setWorkout(latest.current);
+      sendStatus();
     }
   };
 
@@ -238,6 +241,25 @@ export const App = () => {
       restLeft: 0,
     };
     setWorkout(latest.current);
+    sendStatus();
+  };
+
+  // Lets the phone show the live count, the set, and the rest countdown. Reads refs only.
+  const sendStatus = () => {
+    const w = latest.current;
+    if (session.current && socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(
+        JSON.stringify({
+          action: 'status',
+          reps: w.reps,
+          exercise: session.current.exercise,
+          set: w.set,
+          sets: w.sets,
+          stage: w.stage,
+          ...(w.stage === 'rest' && {restLeft: w.restLeft}),
+        }),
+      );
+    }
   };
 
   const stopRest = () => {
@@ -262,6 +284,13 @@ export const App = () => {
     }
     lastArt.current = pickRewardArt(session.current.exercise, Math.random, lastArt.current);
     return lastArt.current;
+  };
+
+  // Auto → 30 s → 45 s → 60 s → 90 s → Auto, saved for this player.
+  const cycleRest = async () => {
+    const current = REST_CHOICES.indexOf(player.restSec ?? null);
+    await profiles.current.setRest(player.id, REST_CHOICES[(current + 1) % REST_CHOICES.length]);
+    syncProfiles();
   };
 
   const cycleVoice = () => {
@@ -479,9 +508,8 @@ export const App = () => {
             : prev.celebration,
           streak: rewards.current?.cleanStreak ?? 0,
         };
-        // Lets the phone show the live count too.
-        if (u.rep && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({action: 'status', reps: u.reps, exercise: session.current?.exercise}));
+        if (u.rep) {
+          sendStatus();
         }
         if (u.rep && session.current && currentSetReps(session.current) >= plan.current.reps) {
           setDone.current();
@@ -612,6 +640,9 @@ export const App = () => {
         fps={fps}
         history={history}
         voiceLabel={VOICE_LABEL[voiceMode]}
+        restLabel={player.restSec ? `${player.restSec} s` : 'Auto'}
+        restSec={player.restSec ?? null}
+        onCycleRest={cycleRest}
         playerName={player.name}
         onPick={choose}
         onCycleVoice={cycleVoice}

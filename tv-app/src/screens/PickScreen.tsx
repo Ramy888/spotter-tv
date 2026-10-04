@@ -16,8 +16,8 @@ const MUSCLES: Record<ExerciseId, string> = {
 export type History = Progress;
 
 // The workout this card starts ("3 × 12 · 60 s rest"), plus last time's total once there is one.
-function historyLine(def: ExerciseDef, h: History[ExerciseId]): string {
-  const plan = planFor(def.id, h);
+function historyLine(def: ExerciseDef, h: History[ExerciseId], restSec: number | null): string {
+  const plan = planFor(def.id, h, restSec);
   const sets = `${plan.sets} × ${plan.reps}`;
   return h ? `${sets} · last time ${h.last}` : `${sets} · ${plan.restSec} s rest`;
 }
@@ -26,17 +26,23 @@ export const PickScreen = ({
   fps,
   history,
   voiceLabel,
+  restLabel,
+  restSec,
   playerName,
   onPick,
   onCycleVoice,
+  onCycleRest,
   onSwitchPlayer,
 }: {
   fps: number;
   history: History;
   voiceLabel: string;
+  restLabel: string;
+  restSec: number | null;
   playerName: string;
   onPick: (def: ExerciseDef) => void;
   onCycleVoice: () => void;
+  onCycleRest: () => void;
   onSwitchPlayer: () => void;
 }) => (
   <View style={screen.root}>
@@ -50,7 +56,7 @@ export const PickScreen = ({
         <FocusButton
           key={def.id}
           label={def.name}
-          detail={historyLine(def, history[def.id])}
+          detail={historyLine(def, history[def.id], restSec)}
           onPress={() => onPick(def)}
           preferred={i === 0}
           testID={`pick-${def.id}`}
@@ -60,7 +66,7 @@ export const PickScreen = ({
               <Text style={[styles.muscles, focused && styles.musclesFocused]}>{MUSCLES[def.id]}</Text>
               <View>
                 <Text style={styles.cardName}>{def.name.toUpperCase()}</Text>
-                <Text style={styles.cardHistory}>{historyLine(def, history[def.id])}</Text>
+                <Text style={styles.cardHistory}>{historyLine(def, history[def.id], restSec)}</Text>
               </View>
             </View>
           )}
@@ -72,6 +78,8 @@ export const PickScreen = ({
         <FocusButton label={`${playerName} · switch`} onPress={onSwitchPlayer} pill testID="player" />
         <View style={styles.pillGap} />
         <FocusButton label={`Coach voice: ${voiceLabel}`} onPress={onCycleVoice} pill testID="voice-mode" />
+        <View style={styles.pillGap} />
+        <FocusButton label={`Rest: ${restLabel}`} onPress={onCycleRest} pill testID="rest-mode" />
       </View>
       <Text style={styles.hint}>Left / right to choose · OK to start</Text>
     </View>

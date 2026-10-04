@@ -320,6 +320,41 @@ describe('App', () => {
       jest.useRealTimers();
     });
 
+    const statuses = () => FakeSocket.last.sent.filter((m) => m.includes('"status"')).map((m) => JSON.parse(m));
+
+    it('keeps the phone up to date: reps with the set, and the rest countdown each second', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      const t = doReps(1);
+      expect(statuses().at(-1)).toEqual({action: 'status', reps: 1, exercise: 'squat', set: 1, sets: 3, stage: 'set'});
+      doReps(11, t);
+      expect(statuses().at(-1)).toMatchObject({stage: 'rest', set: 1, sets: 3, restLeft: 60});
+      advance(2000);
+      expect(statuses().at(-1)).toMatchObject({stage: 'rest', restLeft: 58});
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      expect(statuses().at(-1)).toEqual({action: 'status', reps: 0, exercise: 'squat', set: 2, sets: 3, stage: 'set'});
+      jest.useRealTimers();
+    });
+
+    it('lets the player pick the rest on the picker; the workout uses it', async () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      await act(async () => {}); // saved players load
+      deliver({type: 'session', code: 'KH7VET'});
+      deliver({...frame(0), t: 0});
+      act(() => jest.advanceTimersByTime(200));
+      expect(screen.getByTestId('rest-mode')).toHaveTextContent('Rest: Auto');
+      fireEvent.press(screen.getByTestId('rest-mode'));
+      await act(async () => {}); // the choice is saved for this player
+      expect(screen.getByTestId('rest-mode')).toHaveTextContent('Rest: 30 s');
+      expect(screen.getByTestId('pick-squat')).toHaveTextContent(/3 × 12 · 30 s rest/);
+      fireEvent.press(screen.getByTestId('pick-squat'));
+      doReps(12, 33);
+      expect(screen.getByTestId('rest-left')).toHaveTextContent('30');
+      jest.useRealTimers();
+    });
+
     it('can skip the rest', () => {
       jest.useFakeTimers();
       const screen = render(<App />);

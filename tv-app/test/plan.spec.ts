@@ -26,4 +26,9 @@ describe('workout plan', () => {
     const plan = {...planFor('jumping-jack'), reps: MAX_REPS_PER_SET};
     expect(nextRepsPerSet(plan, [30, 30, 30], true)).toBe(MAX_REPS_PER_SET);
   });
+
+  it("uses the player's chosen rest instead of the exercise's own", () => {
+    expect(planFor('squat', undefined, 30).restSec).toBe(30);
+    expect(planFor('jumping-jack', undefined, null).restSec).toBe(45); // Auto
+  });
 });

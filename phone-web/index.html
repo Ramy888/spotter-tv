@@ -51,6 +51,8 @@
   #reps { font-size: 56px; line-height: 0.9; }
   #exercise { font-size: 22px; margin-left: 10px; }
   #stats { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .set-info { margin: 4px 0 0; color: var(--accent); font-weight: 700; font-size: 15px; letter-spacing: 1px; }
+  #liveInfo.resting #reps { color: var(--accent); font-variant-numeric: tabular-nums; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   /* Name sheet: shown while the TV asks for a player's name (typing on a remote is slow). */
   #nameSheet { position: fixed; inset: 0; background: rgba(10, 11, 16, 0.72); display: flex; align-items: flex-end; z-index: 10; }
@@ -104,6 +106,7 @@
         <div><span id="reps" class="display">0</span><span id="exercise" class="display"></span></div>
         <div id="stats"></div>
       </div>
+      <p id="setInfo" class="set-info" hidden></p>
       <p class="copy" style="font-size: 15px; margin-top: 6px">Eyes on your TV. Keep this phone where it is.</p>
     </div>
     <div class="row">
@@ -241,6 +244,24 @@ $("nameForm").addEventListener("submit", (e) => {
   showNameSheet(false); // the TV saves it and closes its own prompt
 });
 
+// The TV's live progress: the rep count and set, or the rest countdown between sets.
+function showStatus(msg) {
+  const resting = msg.stage === "rest" && Number.isInteger(msg.restLeft);
+  const name = String(msg.exercise ?? "").replace("-", " ");
+  $("liveInfo").classList.toggle("resting", resting);
+  if (resting) {
+    $("reps").textContent = `${Math.floor(msg.restLeft / 60)}:${String(msg.restLeft % 60).padStart(2, "0")}`;
+    $("exercise").textContent = "rest";
+  } else {
+    $("reps").textContent = msg.reps;
+    $("exercise").textContent = name + (msg.reps === 1 ? "" : "s");
+  }
+  const hasSets = Number.isInteger(msg.set) && Number.isInteger(msg.sets);
+  $("setInfo").hidden = !hasSets;
+  if (hasSets) $("setInfo").textContent = resting ? `NEXT: SET ${msg.set + 1} OF ${msg.sets}` : `SET ${msg.set} OF ${msg.sets}`;
+}
+if (new URLSearchParams(location.search).has("debug")) window.spotterShowStatus = showStatus; // layout checks only
+
 function connect() {
   ws = new WebSocket(`${config.relayUrl}?role=phone&code=${code}`);
   ws.onopen = () => { connected = true; setStatus("Connected · step into view", "warn"); };
@@ -248,10 +269,7 @@ function connect() {
     const msg = JSON.parse(e.data);
     if (msg.pong !== undefined) rtt = performance.now() - msg.pong;
     if (msg.type === "say" && Array.isArray(msg.clips)) say(msg.clips);
-    if (msg.type === "status" && Number.isInteger(msg.reps)) {
-      $("reps").textContent = msg.reps;
-      $("exercise").textContent = String(msg.exercise ?? "").replace("-", " ") + (msg.reps === 1 ? "" : "s");
-    }
+    if (msg.type === "status" && Number.isInteger(msg.reps)) showStatus(msg);
     if (msg.type === "name-prompt") showNameSheet(msg.open === true);
     if (msg.type === "tv-left") { connected = false; setStatus("Your TV closed the session", "bad"); }
   };

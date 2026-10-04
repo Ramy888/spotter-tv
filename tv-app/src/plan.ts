@@ -14,10 +14,14 @@ export const DEFAULT_PLANS: Record<ExerciseId, Plan> = {
 export const MAX_REPS_PER_SET = 30;
 const STEP = 2;
 
-// The saved reps per set, if any. The older `target` was a total for one long set, so it's ignored.
-export function planFor(exercise: ExerciseId, progress?: ExerciseProgress): Plan {
+// Rest choices on the picker; null is Auto (each exercise's own rest).
+export const REST_CHOICES: Array<number | null> = [null, 30, 45, 60, 90];
+
+// The saved reps per set, if any (the older `target` was a total for one long set, so it's
+// ignored), and the player's rest choice over the exercise's own.
+export function planFor(exercise: ExerciseId, progress?: ExerciseProgress, restSec?: number | null): Plan {
   const plan = DEFAULT_PLANS[exercise];
-  return {...plan, reps: progress?.repsPerSet ?? plan.reps};
+  return {...plan, reps: progress?.repsPerSet ?? plan.reps, restSec: restSec ?? plan.restSec};
 }
 
 // Every set done in full, with clean form: 2 more reps per set next time. Otherwise the same again.

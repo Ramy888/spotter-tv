@@ -15,7 +15,7 @@ export type ExerciseProgress = {
   sessions: number;
 };
 export type Progress = Partial<Record<ExerciseId, ExerciseProgress>>;
-export type Profile = {id: string; name: string};
+export type Profile = {id: string; name: string; restSec?: number}; // restSec: rest between sets; absent = Auto
 
 export const MAX_PROFILES = 4;
 export const MAX_NAME_LENGTH = 16;
@@ -149,6 +149,17 @@ export class ProfileStore {
     this.doc = {...this.doc, profiles: this.doc.profiles.map((p) => (p.id === id ? {...p, name} : p))};
     await this.saveProfiles();
     return true;
+  }
+
+  // The player's rest between sets, or null for Auto (each exercise's own).
+  async setRest(id: string, restSec: number | null): Promise<void> {
+    this.doc = {
+      ...this.doc,
+      profiles: this.doc.profiles.map((p) =>
+        p.id !== id ? p : restSec == null ? {id: p.id, name: p.name} : {id: p.id, name: p.name, restSec},
+      ),
+    };
+    await this.saveProfiles();
   }
 
   async switchTo(id: string): Promise<void> {

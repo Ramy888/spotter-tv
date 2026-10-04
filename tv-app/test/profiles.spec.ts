@@ -93,6 +93,16 @@ describe('ProfileStore', () => {
     expect(await store.rename('p9', 'Ramy')).toBe(false);
     expect(store.active.name).toBe('Player 1');
   });
+
+  it('remembers each player\'s rest choice, and Auto clears it', async () => {
+    const mem = new MemoryStore();
+    const store = await loaded(mem);
+    await store.setRest('p1', 90);
+    expect(store.active.restSec).toBe(90);
+    expect((await loaded(mem)).active.restSec).toBe(90);
+    await store.setRest('p1', null);
+    expect((await loaded(mem)).active.restSec).toBeUndefined();
+  });
 });
 
 describe('names', () => {

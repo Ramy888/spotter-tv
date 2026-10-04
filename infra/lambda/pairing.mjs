@@ -48,10 +48,7 @@ export function parseMessage(body) {
   }
   if (msg?.action === "host") return { type: "host" };
   if (msg?.action === "coach") return { type: "coach", msg };
-  if (msg?.action === "status") {
-    const ok = Number.isInteger(msg.reps) && msg.reps >= 0 && msg.reps <= 1000 && STATUS_EXERCISES.has(msg.exercise);
-    return ok ? { type: "status", reps: msg.reps, exercise: msg.exercise } : null;
-  }
+  if (msg?.action === "status") return parseStatus(msg);
   if (msg?.action === "name-prompt") return typeof msg.open === "boolean" ? { type: "name-prompt", open: msg.open } : null;
   if (msg?.action === "name") {
     const name = typedName(msg.name);
@@ -75,6 +72,22 @@ export function parseMessage(body) {
     t: Number.isFinite(msg.t) ? msg.t : undefined, // phone capture time (ms, phone clock)
     sentTs: Number.isFinite(msg.sentTs) ? msg.sentTs : undefined,
   };
+}
+
+const int = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
+
+// The TV's live progress for the phone: reps, and optionally the set and rest countdown.
+function parseStatus(msg) {
+  if (!int(msg.reps, 0, 1000) || !STATUS_EXERCISES.has(msg.exercise)) return null;
+  const status = { type: "status", reps: msg.reps, exercise: msg.exercise };
+  if (msg.set === undefined && msg.sets === undefined && msg.stage === undefined) return status; // older TVs
+  const ok =
+    int(msg.sets, 1, 10) &&
+    int(msg.set, 1, msg.sets) &&
+    (msg.stage === "set" || msg.stage === "rest") &&
+    (msg.restLeft === undefined || int(msg.restLeft, 0, 600));
+  if (!ok) return null;
+  return { ...status, set: msg.set, sets: msg.sets, stage: msg.stage, ...(msg.restLeft !== undefined && { restLeft: msg.restLeft }) };
 }
 
 export function expiresAt(nowSeconds) {

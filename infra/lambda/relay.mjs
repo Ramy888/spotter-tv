@@ -265,7 +265,10 @@ async function onMessage(event) {
   if (msg?.type === "name-prompt") return toPhone(event, { type: "name-prompt", open: msg.open });
   if (msg?.type === "name") return nameToTv(event, msg.name);
   if (msg?.type === "say") return toPhone(event, { type: "say", clips: msg.clips });
-  if (msg?.type === "status") return toPhone(event, { type: "status", reps: msg.reps, exercise: msg.exercise });
+  if (msg?.type === "status") {
+    const { type, ...status } = msg;
+    return toPhone(event, { type, ...status });
+  }
   if (msg?.type !== "frame") return ok;
   const frame = msg;
 
