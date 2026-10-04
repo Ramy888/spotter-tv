@@ -21,7 +21,12 @@ class FakeSocket {
   send(data: string) {
     this.sent.push(data);
   }
-  close() {}
+  closed = false;
+  close() {
+    this.closed = true;
+    this.readyState = 3;
+    this.onclose?.();
+  }
 }
 
 const deliver = (msg: object) => act(() => FakeSocket.last.onmessage?.({data: JSON.stringify(msg)}));
@@ -388,6 +393,40 @@ describe('App', () => {
       expect(screen.getByTestId('sets-line')).toHaveTextContent('SETS 12');
       advance(70_000); // the rest timer must not start another set behind the summary
       expect(screen.getByTestId('summary-headline')).toBeTruthy();
+      jest.useRealTimers();
+    });
+  });
+
+  describe('pairing code', () => {
+    it('gets a fresh code every 10 minutes while waiting for a phone, hiding the old one at once', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      const first = FakeSocket.last;
+      deliver({type: 'session', code: 'OLDCDE'});
+      expect(screen.getByText('OLDCDE')).toBeTruthy();
+      act(() => jest.advanceTimersByTime(9 * 60 * 1000));
+      expect(first.closed).toBe(false); // still fresh
+      act(() => jest.advanceTimersByTime(2 * 60 * 1000));
+      expect(first.closed).toBe(true);
+      expect(screen.queryByText('OLDCDE')).toBeNull(); // never show a code that's being replaced
+      act(() => jest.advanceTimersByTime(3000)); // reconnects
+      expect(FakeSocket.last).not.toBe(first);
+      act(() => FakeSocket.last.onopen?.());
+      deliver({type: 'session', code: 'NEWCDE'});
+      expect(screen.getByText('NEWCDE')).toBeTruthy();
+      jest.useRealTimers();
+    });
+
+    it('keeps the code while a phone is connected and sending', () => {
+      jest.useFakeTimers();
+      render(<App />);
+      const first = FakeSocket.last;
+      deliver({type: 'session', code: 'KEEPME'});
+      for (let s = 0; s < 11 * 60; s++) {
+        deliver({...frame(0), t: s * 1000});
+        act(() => jest.advanceTimersByTime(1000));
+      }
+      expect(first.closed).toBe(false);
       jest.useRealTimers();
     });
   });

@@ -32,6 +32,10 @@ const PHONE_SILENT_MS = 3000; // no frames for this long: treat the phone as gon
 // API Gateway closes WebSocket connections after 10 idle minutes, which would replace the
 // pairing code while someone is fetching their phone. A ping every 5 minutes keeps it open.
 const KEEPALIVE_MS = 5 * 60 * 1000;
+// While no phone is connected, swap the pairing code for a fresh one this often. A code left on
+// screen for hours (or across the Mac sleeping) may belong to an expired session or a dead socket.
+const PAIRING_REFRESH_MS = 10 * 60 * 1000;
+const PAIRING_CHECK_MS = 30 * 1000;
 // Ask again for a name's clips only after this long (the relay also rate-limits per TV).
 const VOICE_NAME_RETRY_MS = 15 * 1000;
 const UI_INTERVAL_MS = 100;
@@ -430,6 +434,7 @@ export const App = () => {
     let ws: WebSocket;
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let closed = false;
+    let waitingSince = 0; // when the current code went up with no phone connected; 0 = not waiting
 
     // Counting runs on every frame; the screen redraws at most every UI_INTERVAL_MS, so a slow
     // render can't back up the message queue.
@@ -464,6 +469,7 @@ export const App = () => {
       }
       screen.current = 'pick';
       setPhase((p) => (p === 'connecting' ? p : 'waiting'));
+      waitingSince = Date.now();
     };
 
     const onFrame = (kp: Point[], capturedAt: number | undefined) => {
@@ -473,6 +479,7 @@ export const App = () => {
         sendNamePrompt(true); // a phone that (re)joins while the TV is asking for a name
       }
       s.lastFrameAt = now;
+      waitingSince = 0; // a phone is here
       s.frames++;
       if (now - s.since >= 1000) {
         setFps(Math.round((s.frames * 1000) / (now - s.since)));
@@ -535,6 +542,7 @@ export const App = () => {
           console.log(`[spotter] session ${msg.code}`);
           setCode(msg.code);
           setPhase('waiting');
+          waitingSince = Date.now();
           requestVoiceName();
         } else if (msg.type === 'coach') {
           const ai = msg.summary as CoachSummary | null;
@@ -565,7 +573,10 @@ export const App = () => {
         }
       };
       ws.onclose = () => {
-        // A new connection gets a new session and code; the old code is gone with the old socket.
+        // A new connection gets a new session and code; the old code is gone with the old socket,
+        // so stop showing it right away.
+        waitingSince = 0;
+        setPhase((p) => (p === 'waiting' ? 'connecting' : p));
         if (!closed) {
           reconnect = setTimeout(connect, RECONNECT_MS);
         }
@@ -583,6 +594,12 @@ export const App = () => {
       }
     }, 1000);
 
+    const pairingRefresh = setInterval(() => {
+      if (waitingSince && Date.now() - waitingSince >= PAIRING_REFRESH_MS) {
+        ws.close(); // onclose reconnects, and the relay hands out a new code
+      }
+    }, PAIRING_CHECK_MS);
+
     const keepalive = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({action: 'ping'}));
@@ -594,6 +611,7 @@ export const App = () => {
       closed = true;
       clearInterval(keepalive);
       clearInterval(watchdog);
+      clearInterval(pairingRefresh);
       clearRestTimer();
       cancelUiUpdate();
       if (reconnect) {
