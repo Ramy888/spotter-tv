@@ -17,7 +17,7 @@ Open work, newest first. Remove an item when it's done.
 3. **A rep counter:** a big condensed number inside the ring, like a scoreboard.
 4. **Phone-to-TV link:** two rounded rectangles (phone, TV) joined by an arc of ticks.
 
-**Concepts (2026-10-04):** `brand/concepts/sheet.png`: A. Ring + S, B. Spotter's eye, C. Scoreboard, D. Phone to TV, E. The spot. Sources: `brand/concepts/make-concepts.py`.
+**Concepts (2026-10-04):** `brand/concepts/sheet.png`: A. Ring + S, B. Spotter's eye, C. Scoreboard, D. Phone to TV, E. The spot. Round 2, `brand/concepts/sheet-2.png`: F. Kettlebell S, G. Bolt S, H. Level up, I. Spot the mascot, J. Weight plate, K. Pulse check. Sources: `brand/concepts/make-concepts*.py`.
 
 **Where it changes:** everything in `brand/README.md` → "Where it's used": the Fire TV launcher icon, the TV wordmark and coach card, the phone page header, favicon and home-screen icon, the README, and the store images.
 
