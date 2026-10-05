@@ -34,6 +34,17 @@ Every Spotter screen in the film is a **real capture of the app running on the V
 
 About 230 narrated words, which leaves room for the coach's own lines (shots 6–8) and the music lifts.
 
+## Which tool, and how
+
+**Character reference:** `video/character-reference.png` (made with HiggsField Z Image). Upload it as the reference or start image for every shot with the athlete.
+
+**Free tiers that fit (checked 2026-10-05; free tiers change often, so check before relying on them):**
+- **Google Flow (Veo 3.1):** about 50 daily credits, roughly 12 videos a day at 720p. Enough for all 9 AI shots in one day.
+- **Kling AI:** 66 credits a day, roughly 2–6 videos, with image-to-video from a reference. Spread the shots over 2–3 days.
+- Others with daily credits: Hailuo, PixVerse, Seedance.
+
+Free tiers often add a watermark; check before generating all the shots. Generate each shot at 16:9, 5 seconds, from the reference image plus its prompt below.
+
 ## AI generation prompts
 
 Append the visual style line to each. Use the character sheet as the reference image in every shot with the athlete. Keep the TV screen **blank black** (or green) in every prompt.
