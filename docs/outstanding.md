@@ -6,6 +6,10 @@ Open work, newest first. Remove an item when it's done.
 
 Submitted 2026-10-07 (build 3: the between-set coach, the counting fixes, the Level up logo and new store images). The console estimates it goes live by 2026-10-12, 11:00 PDT. Then update README and devpost.md ("live", version 1.1.0).
 
+## Next store update: rest screenshot with the Coach card
+
+The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-rest.png` shows the plain countdown. Retake it on the Vega Virtual Device with the Coach card (do a few half squats in set 1 so the focus is "Full depth"), at 1920×1080 with no transparency, and upload it to both screenshot sections (Fire TV and tablet) with the next version. Don't cancel the 1.1.0 review for it.
+
 ## Before submitting to Devpost (from the Devpost FAQ, 2026-10-07)
 
 - **Repo:** make https://github.com/Ramy888/spotter-tv public (it's private now). `LICENSE` (MIT) is already there, which is all a public repo needs. If it has to stay private instead, add the reviewers as collaborators close to submitting (invites expire after 7 days): knmeiss, giolaq, anishamalde, mosesroth, emersonsklar, and testing@devpost.com.
