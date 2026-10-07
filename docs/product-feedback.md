@@ -76,7 +76,7 @@ React Native 0.83 through `@amazon-devices/react-native-kepler`.
   - **Architectures:** the console accepted an aarch64 package even though no Vega device uses it, and only flagged it on the final review page. The submission guide doesn't say which architecture Vega devices need (armv7).
   - **Build numbers:** every uploaded file needs a unique build number ("The build numbers of all uploaded App files in an app must be unique"). For multiple architectures of one release, that should be documented, or handled automatically.
   - Some side-navigation links and the Next button sometimes didn't respond to a click; clicking again later worked.
-- **Onboarding (zero to hello world):** from "account review is complete" to a full draft in one sitting, once the release build and images were ready.
+- **Onboarding (zero to hello world):** from "account review is complete" to a full draft in one sitting, once the release build and images were ready. Review was fast: submitted on 2026-10-04, live on 2026-10-07, passing primary, content policy and functionality validation with no back-and-forth.
 - **Would build with it again:** yes. The flow is clear and the review page catches real problems; the category bug and the architecture guidance are the main things to fix.
 
 ### Amazon Developer account and hackathon onboarding

@@ -44,7 +44,7 @@ The whole TV experience is a **Vega OS app written in React Native for Vega**:
 - remote-first design: D-pad focus on every screen, a 1280×720 layout scaled to any TV, and focus shown by border and fill so it's readable from 3 m;
 - **Vega AsyncStorage** keeps players, names and progress on the TV, so there's no account;
 - **Vega W3C Media** (`AudioPlayer`) plays the coach's voice on the TV;
-- the Vega CLI and Virtual Device built, tested and packaged the app (release `.vpkg`), which is **submitted to the Amazon Appstore** for Vega Fire TVs.
+- the Vega CLI and Virtual Device built, tested and packaged the app (release `.vpkg`), which is **live on the Amazon Appstore** for Vega Fire TVs (version 1.0.0, published 2026-10-07; passed primary, content policy and functionality validation).
 
 ### How it uses AWS
 
@@ -62,7 +62,7 @@ Video never leaves the phone. Names and progress stay on the TV. No account, no 
 
 ### What's next
 
-Bedrock for the AI coach once our account is enabled (one setting away), more exercises (push-ups, planks with a timer), and testing on a real Vega Fire TV.
+Spotter is already live on the Amazon Appstore. Next: Bedrock for the AI coach once our account is enabled (one setting away), a store update with the new logo, more exercises (push-ups, planks with a timer), and testing on a real Vega Fire TV.
 
 ## Built With
 

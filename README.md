@@ -8,6 +8,8 @@ Spotter is AI form coaching for Fire TV. Lean your phone against something acros
 
 Built for the Amazon "Build, Ship, Shape" Developer Hackathon: **Fire TV track (Vega OS)** + **AWS Builder**.
 
+**Live on the Amazon Appstore** for Vega Fire TVs (version 1.0.0, published 2026-10-07).
+
 ## What it does
 
 - **Pair in one scan.** The TV shows a QR code and a 6-character code. The phone opens a web page, no install, and starts its camera.

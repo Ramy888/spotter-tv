@@ -8,7 +8,7 @@ Opened 2026-09-30, followed up 2026-10-01, escalated through AWS Support on Redd
 
 ## Store update for the new logo (don't submit yet)
 
-The logo is now "Level up" (three rising chevrons) everywhere in the repo, the TV app and the phone page (2026-10-04). Spotter was submitted to the Amazon Appstore with the old logo. When you decide to update the store listing:
+The logo is now "Level up" (three rising chevrons) everywhere in the repo, the TV app and the phone page (2026-10-04). Spotter 1.0.0 went **live on the Amazon Appstore on 2026-10-07** with the old logo; the update goes in as a new version ("Add upcoming version" in the console). When you decide to update the store listing:
 - upload the release build with build number 2 (`tv-app/manifest.toml`), from `tv-app/build/armv7-release/`;
 - replace the 1280×720 app icon, background, featured logo and background, and the 512 and 114 px icons with the files in `brand/png/`;
 - replace the 6 screenshots with `brand/store/` (retaken with the new mark).
