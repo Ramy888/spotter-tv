@@ -104,5 +104,5 @@ Paste into the console's testing-instructions field:
 ## 5. Before you submit
 
 - [ ] Run the end-to-end checks against the live stack (`README.md` → Checks).
-- [ ] Test on a real Vega Fire TV device if one is available (Amazon lists a physical device as a prerequisite; so far tested on the Vega Virtual Device only).
+- [ ] Test on a real Vega Fire TV device if one is available (Amazon lists a physical device as a prerequisite; so far tested on the Vega Virtual Device only). The hackathon itself doesn't need one: the Devpost FAQ accepts the Vega simulator for submission and judging.
 - [ ] Make the GitHub repository public, so the privacy policy's contact link works.
