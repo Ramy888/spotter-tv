@@ -152,13 +152,15 @@ async function preloadVoice() {
     const { counts, groups } = await fetch("audio/clips.json").then((r) => r.json());
     const ids = [...Array.from({ length: counts }, (_, i) => `count-${i + 1}`),
       ...Object.entries(groups).flatMap(([g, n]) => Array.from({ length: n }, (_, i) => `${g}-${i + 1}`))];
-    await Promise.all(ids.map(async (id) => {
-      const data = await fetch(`audio/${id}.mp3`).then((r) => r.arrayBuffer());
-      clips.set(id, await audio.decodeAudioData(data));
-    }));
+    await Promise.all(ids.map(loadClip));
   } catch (err) {
     console.warn("voice preload failed", err);
   }
+}
+
+async function loadClip(id) {
+  const data = await fetch(`audio/${id}.mp3`).then((r) => r.arrayBuffer());
+  clips.set(id, await audio.decodeAudioData(data));
 }
 
 function speakNext() {
@@ -172,10 +174,30 @@ function speakNext() {
   source.start();
 }
 
+// The coach's between-set lines ("line-<16 hex>") are made during a rest, so they're fetched when
+// asked for; one that won't load is skipped.
+const LINE_CLIP = /^line-[0-9a-f]{16}$/;
+
 function say(ids) {
   if (!audio) return;
+  const lines = ids.filter((id) => LINE_CLIP.test(id) && !clips.has(id));
+  if (lines.length) {
+    Promise.all(lines.map((id) => loadClip(id).catch(() => {}))).then(() => enqueue(ids));
+    return;
+  }
+  enqueue(ids);
+}
+
+// Never fall behind the workout, and never drop a count for a phrase: a new count drops the
+// phrases still waiting, and a full queue loses a phrase first (as on the TV, voicePlayer.ts).
+const isCount = (id) => /^count-\d+$/.test(id);
+function enqueue(ids) {
+  if (ids.some(isCount)) queue.splice(0, queue.length, ...queue.filter(isCount));
   queue.push(...ids);
-  queue.splice(0, Math.max(0, queue.length - 3)); // never fall behind the workout: keep the newest
+  while (queue.length > 3) {
+    const phrase = queue.findIndex((id) => !isCount(id));
+    queue.splice(phrase >= 0 ? phrase : 0, 1);
+  }
   if (!speaking) speakNext();
 }
 let leaving = false;

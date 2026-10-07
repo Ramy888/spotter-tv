@@ -4,6 +4,7 @@
 // name is used at moments that matter, not on every rep, so it stays personal instead of noise.
 import {Cue, ExerciseUpdate} from './exercises/types';
 import {Reward} from './rewards';
+import {Focus} from './setCoach';
 import manifest from './voiceClips.json';
 
 type Group = keyof typeof manifest.groups;
@@ -41,10 +42,12 @@ export class VoiceCoach {
     return [this.named ? 'name-start' : this.pick('start')];
   }
 
-  // Between sets: "Great set! Take a breather.", an encouraging line halfway through the rest,
+  // Between sets: "Great set! Take a breather." (or "Focus kept!" when the last set did what the
+  // coach asked) and the focus for the next set, an encouraging line halfway through the rest,
   // then "Set two. Let's go!" or "Last set. Give it everything!" (the 3-2-1 is count clips).
-  restStart(): string[] {
-    return [this.pick('rest-start')];
+  restStart(focus: Focus | null = null, kept = false): string[] {
+    const opening = this.pick(kept ? 'focus-kept' : 'rest-start');
+    return focus ? [opening, this.pick(`focus-${focus}`)] : [opening];
   }
 
   restMid(): string[] {
@@ -85,6 +88,9 @@ export class VoiceCoach {
 
     const rewardGroup = reward ? REWARD_GROUP[reward.kind] : undefined;
     const toGo = this.target == null ? null : this.target - u.reps;
+    if (toGo === 0) {
+      return clips; // the set is done: the rest or finish line follows right away
+    }
     if (rewardGroup) {
       clips.push(this.pick(rewardGroup));
       this.cleanSincePraise = 0;

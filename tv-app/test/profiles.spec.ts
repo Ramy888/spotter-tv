@@ -39,6 +39,14 @@ describe('ProfileStore', () => {
     expect(store.activeProgress.squat).toEqual({last: 9, target: null, repsPerSet: 11, bestDepth: 84, sessions: 2});
   });
 
+  it('adds up the focuses kept', async () => {
+    const store = await loaded();
+    await store.recordSession('squat', 36, 12, 84, 2);
+    await store.recordSession('squat', 36, 14, 84);
+    await store.recordSession('squat', 36, 14, 84, 1);
+    expect(store.activeProgress.squat?.focusKept).toBe(3);
+  });
+
   it('keeps each player\'s progress separate and remembers who trained last', async () => {
     const mem = new MemoryStore();
     const store = await loaded(mem);

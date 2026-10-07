@@ -7,6 +7,18 @@ export type VoiceMode = 'tv' | 'phone' | 'off';
 
 const MAX_QUEUE = 3; // never fall behind the workout: keep only the newest clips
 
+// Counting is the coach's main job; phrases ("Looking strong.") are extras. A new count makes any
+// phrase still waiting stale, and when the queue is full a phrase goes before a count does.
+const isCount = (id: string) => /^count-\d+$/.test(id);
+export function enqueue(queue: string[], clips: string[]): string[] {
+  const next = [...(clips.some(isCount) ? queue.filter(isCount) : queue), ...clips];
+  while (next.length > MAX_QUEUE) {
+    const phrase = next.findIndex((id) => !isCount(id));
+    next.splice(phrase >= 0 ? phrase : 0, 1);
+  }
+  return next;
+}
+
 // Name clips ("name-start" = "Let's go, Ramy!") are made per player on the server
 // (infra/lambda/voiceNames.mjs). Each has a plain clip to use when it can't be played.
 const NAME_CLIP_FALLBACK: Record<string, string> = {
@@ -17,6 +29,13 @@ const NAME_CLIP_FALLBACK: Record<string, string> = {
   'name-finish': 'finish-1',
 };
 const isNameClip = (id: string) => id in NAME_CLIP_FALLBACK;
+// Between-set coach lines ("line-<16 hex>") are made by the relay during a rest
+// (docs/set-coach.md). The focus was already spoken with a fixed clip, so one that won't play is skipped.
+export const isLineClip = (id: string) => /^line-[0-9a-f]{16}$/.test(id);
+// The between-set coach's fixed clips are newer than the first store release: a server without
+// them must not cost the TV its voice, so one that won't play is skipped too.
+const isFocusClip = (id: string) => id.startsWith('focus-');
+const skipOnFailure = (id: string) => isLineClip(id) || isFocusClip(id);
 
 type Player = Pick<AudioPlayer, 'initialize' | 'play' | 'addEventListener'> & {src: string};
 
@@ -26,6 +45,11 @@ export class VoicePlayer {
   private player: Player | null = null;
   private ready: Promise<Player> | null = null;
   private current: string | null = null;
+  // Each clip played is one attempt. Vega can report one failed clip twice (play() rejects and an
+  // 'error' event follows); only the first report counts, or the second would land on a later clip
+  // (or none) and switch the voice to the phone.
+  private attempt = 0;
+  private settled = 0;
   // The player's name once its clips exist on the server; null means plain clips only.
   voiceName: string | null = null;
 
@@ -45,8 +69,7 @@ export class VoicePlayer {
       return;
     }
     const clips = this.voiceName ? requested : requested.map(plainClip);
-    this.queue.push(...clips);
-    this.queue.splice(0, Math.max(0, this.queue.length - MAX_QUEUE));
+    this.queue = enqueue(this.queue, clips);
     if (!this.playing) {
       this.playNext();
     }
@@ -61,13 +84,22 @@ export class VoicePlayer {
     }
     this.playing = true;
     this.current = id;
+    const attempt = ++this.attempt;
     try {
       const player = await this.getPlayer();
       player.src = this.clipUrl(id);
       await player.play();
     } catch {
-      this.failed([id, ...this.queue]);
+      this.onFailure(attempt);
     }
+  }
+
+  private onFailure(attempt: number): void {
+    if (attempt !== this.attempt || this.settled === attempt || !this.current) {
+      return; // already handled, or about a clip that is no longer playing
+    }
+    this.settled = attempt;
+    this.failed([this.current, ...this.queue]);
   }
 
   private clipUrl(id: string): string {
@@ -76,12 +108,13 @@ export class VoicePlayer {
       : `${PHONE_URL}audio/${id}.mp3`;
   }
 
-  // A name clip that won't play (not made yet, daily limit) is replaced by its plain clip;
-  // that says nothing about the TV's audio, so it must not switch the voice to the phone.
+  // A name clip that won't play (not made yet, daily limit) is replaced by its plain clip, and a
+  // coach line or focus clip that won't play (expired, not on the server yet) is skipped; none of
+  // that says anything about the TV's audio, so it must not switch the voice to the phone.
   private failed(pending: string[]): void {
     const [id, ...rest] = pending;
-    if (id && isNameClip(id)) {
-      this.queue = [plainClip(id), ...rest];
+    if (id && (isNameClip(id) || skipOnFailure(id))) {
+      this.queue = isNameClip(id) ? [plainClip(id), ...rest] : rest;
       this.playNext();
     } else {
       this.fallBackToPhone(pending);
@@ -92,8 +125,12 @@ export class VoicePlayer {
     this.ready ??= (async () => {
       const player = this.createPlayer();
       await player.initialize();
-      player.addEventListener('ended', () => this.playNext());
-      player.addEventListener('error', () => this.failed(this.current ? [this.current, ...this.queue] : this.queue));
+      player.addEventListener('ended', () => {
+        if (this.settled !== this.attempt) {
+          this.playNext();
+        }
+      });
+      player.addEventListener('error', () => this.onFailure(this.attempt));
       this.player = player;
       return player;
     })();

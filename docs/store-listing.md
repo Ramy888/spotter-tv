@@ -11,7 +11,7 @@ Amazon's Vega guide says: **don't mention "Vega" in any listing field.**
 | File | `tv-app/build/armv7-release/spotter-tv_armv7.vpkg` only. The three Vega Fire TVs (Fire TV Stick 4K Select, Stick HD 2nd gen, Stick 4K) all take armv7; an aarch64 package targets no devices and blocks submission. Each uploaded file needs a unique build number. |
 | Rebuild | `cd tv-app && source ~/vega/env && npm run build:release` |
 | Package id | `com.spotter.tv` |
-| Version / build | 1.0.0 / 1 (`manifest.toml`; raise `build-number` for every new upload) |
+| Version / build | 1.1.0 / 3, submitted 2026-10-07 (1.0.0 / 1 went live 2026-10-07). `manifest.toml`; raise `build-number` for every new upload |
 
 Draft created 2026-10-04: app "Spotter", SKU `spotter-tv` (App ID `amzn1.devportal.mobileapp.cc5718846f104947b42f51cca197de4b`).
 
@@ -87,7 +87,7 @@ Answer from the app's actual behavior:
 | Personal information | Optional first name (stored on the TV; sent to Amazon Polly to make voice clips). Body points from the camera are processed in real time and not stored. No account. |
 | Camera | Used on the user's own phone, in a web page; video never leaves the phone |
 | Ads, in-app purchases | None |
-| AI-generated content | Reward illustrations were made with AI ahead of time and reviewed by hand. The optional coach summary is rewritten by an AI model, which is only allowed to repeat the session's numbers. |
+| AI-generated content | Reward illustrations were made with AI ahead of time and reviewed by hand. The optional coach summary and the coach's tip between sets are rewritten by an AI model, which is only allowed to repeat the session's numbers; the tip is voiced with Amazon Polly. |
 
 ## 4. Testing instructions for Amazon reviewers
 

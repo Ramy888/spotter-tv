@@ -7,8 +7,18 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ApiGatewayManagementApiClient, GoneException, PostToConnectionCommand } from "@aws-sdk/client-apigatewaymanagementapi";
 import { expiresAt, isValidCode, newPairingCode, parseMessage } from "./pairing.mjs";
-import { requestCoach } from "./coachProvider.mjs";
+import { requestCoach, requestSetLine } from "./coachProvider.mjs";
 import { COACH_COOLDOWN_SECONDS, parseCoachRequest } from "./coach.mjs";
+import {
+  DAILY_LINE_LIMIT,
+  LINE_CLIP_TTL_SECONDS,
+  SET_COACH_COOLDOWN_SECONDS,
+  lineClipKey,
+  lineQuotaKey,
+  parseSetCoachRequest,
+  spokenLine,
+} from "./setCoach.mjs";
+import { randomBytes } from "node:crypto";
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import {
   DAILY_SYNTH_LIMIT,
@@ -170,6 +180,60 @@ async function coachSession(event, msg) {
   return ok;
 }
 
+// Between sets, the TV asks for an AI rewrite of its one-line focus (docs/set-coach.md), voiced by
+// Polly. Spend is capped like name clips: one request per TV connection per cooldown, and a daily
+// total. Any failure answers line: null, and the TV keeps its rule-based line and fixed clips.
+async function setCoach(event, msg) {
+  const connId = event.requestContext.connectionId;
+  const req = parseSetCoachRequest(msg);
+  if (!req) return ok;
+  try {
+    await db.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { pk: `CONN#${connId}` },
+        UpdateExpression: "SET lastSetCoachAt = :now",
+        ConditionExpression: "#role = :tv AND (attribute_not_exists(lastSetCoachAt) OR lastSetCoachAt < :cutoff)",
+        ExpressionAttributeNames: { "#role": "role" },
+        ExpressionAttributeValues: { ":now": now(), ":tv": "tv", ":cutoff": now() - SET_COACH_COOLDOWN_SECONDS },
+      }),
+    );
+    await db.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { pk: lineQuotaKey(new Date()) },
+        UpdateExpression: "ADD made :one SET expiresAt = :exp",
+        ConditionExpression: "attribute_not_exists(made) OR made < :limit",
+        ExpressionAttributeValues: { ":one": 1, ":limit": DAILY_LINE_LIMIT, ":exp": now() + 2 * 24 * 60 * 60 },
+      }),
+    );
+  } catch (err) {
+    if (err?.name === "ConditionalCheckFailedException") return ok;
+    throw err;
+  }
+
+  const result = await requestSetLine(req);
+  let clip = null;
+  if (result.line) {
+    clip = await makeLineClip(spokenLine(result.line, req.name)).catch((err) => {
+      console.log(JSON.stringify({ setCoach: "voice failed", error: err?.name }));
+      return null;
+    });
+  }
+  console.log(JSON.stringify({ setCoach: result.status, provider: result.provider, ms: result.ms, voiced: Boolean(clip) }));
+  await send(event, connId, { type: "set-coach", set: req.set, line: result.line, ...(clip && { clip }) });
+  return ok;
+}
+
+// Voices a coach line with Polly and stores it for the site to serve; returns its random clip id.
+async function makeLineClip(text) {
+  const speech = await polly.send(new SynthesizeSpeechCommand({ VoiceId: "Matthew", Engine: "neural", OutputFormat: "mp3", Text: text }));
+  const audio = await speech.AudioStream.transformToByteArray();
+  const id = `line-${randomBytes(8).toString("hex")}`;
+  await db.send(new PutCommand({ TableName: TABLE, Item: { pk: lineClipKey(id), audio, expiresAt: now() + LINE_CLIP_TTL_SECONDS } }));
+  return id;
+}
+
 // A TV asks for its player's name clips ("Let's go, Ramy!") when a named player is picked.
 // Clips are made once per name with Polly and cached; the site Lambda only ever reads them.
 // Spend is capped two ways: one request per TV connection per cooldown, and a daily total.
@@ -262,6 +326,7 @@ async function onMessage(event) {
   if (msg?.type === "host") return hostSession(event);
   if (msg?.type === "coach") return coachSession(event, msg.msg);
   if (msg?.type === "voice-name") return voiceName(event, msg.name);
+  if (msg?.type === "set-coach") return setCoach(event, msg.msg);
   if (msg?.type === "name-prompt") return toPhone(event, { type: "name-prompt", open: msg.open });
   if (msg?.type === "name") return nameToTv(event, msg.name);
   if (msg?.type === "say") return toPhone(event, { type: "say", clips: msg.clips });

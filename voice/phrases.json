@@ -90,6 +90,26 @@
     "last-set": [
       "Last set. Give it everything!",
       "Final set. Finish strong!"
+    ],
+    "focus-frame": [
+      "Next set, stay in the frame. Step back so I can see all of you.",
+      "This time, keep your whole body in view."
+    ],
+    "focus-depth": [
+      "Next set, every rep all the way down.",
+      "This time, full depth on every rep. Take your time at the bottom."
+    ],
+    "focus-tempo": [
+      "Next set, slow it down. Control every rep.",
+      "This time, nice and slow. No rushing."
+    ],
+    "focus-keep": [
+      "That was clean. Same form next set.",
+      "Clean set. Do it again just like that."
+    ],
+    "focus-kept": [
+      "Focus kept! That's how it's done.",
+      "You fixed it. Great set!"
     ]
   },
   "counts": 50

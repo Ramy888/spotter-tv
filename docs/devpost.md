@@ -34,7 +34,7 @@ People who train at home in front of their TV: beginners who want to know a rep 
 1. Open **Spotter on Fire TV**. Scan the QR code with any phone. There's no app to install and no account.
 2. Lean the phone against something across the room. It tracks your body on the phone and sends only body points, never video, to the TV.
 3. **The Fire TV app counts every rep live** for squats, lunges and jumping jacks. A rep only counts at full depth; a half rep gets "Go deeper" on screen and out loud.
-4. It **trains you like a coach**: 3 sets of 12 squats, a rest countdown between sets ("Great set! Take a breather.", "Set two. Let's go!"), and Skip rest when you're ready.
+4. It **trains you like a coach**: 3 sets of 12 squats, a rest countdown between sets ("Great set! Take a breather.", "Set two. Let's go!"), and Skip rest when you're ready. **During each rest, the coach tells you the one thing to fix next**, from the set you just did ("2 reps didn't reach full depth. Next set: every rep all the way down."), an AI rewrites it in a coaching voice and Polly says it by name; the next set checks it, and "Focus kept" is celebrated.
 5. It **talks to you by name** ("Let's go, Ramy!", "Last one, Ramy!") with an Amazon Polly voice, and celebrates clean streaks and your deepest rep with funny cartoon stickers.
 6. After the workout, the **coach sums it up**: pace, depth, clean reps, and a target for next time. Finish every set with clean form and the next workout asks for 2 more reps per set.
 
@@ -49,12 +49,12 @@ The whole TV experience is a **Vega OS app written in React Native for Vega**:
 ### How it uses AWS
 
 - **API Gateway WebSocket + Lambda + DynamoDB**: a serverless relay that pairs the phone and the TV with a 6-character code and carries about 15 pose frames per second, 88 ms median phone-to-TV.
-- **Amazon Polly**: 103 coach phrases, plus each player's name, made once and cached.
+- **Amazon Polly**: 113 coach phrases, plus each player's name, made once and cached, and the between-set coach's line, voiced live during the rest.
 - **AWS CDK**: the whole stack as code.
 
 ### How it's built, briefly
 
-On-device pose tracking (MediaPipe) on the phone → the WebSocket relay on AWS → the Vega app, which runs the rep counting, cues, rewards, voice and coaching. The AI coach rewrites the summary in friendlier words but is never allowed to invent a number. The architecture diagram is in the README.
+On-device pose tracking (MediaPipe) on the phone → the WebSocket relay on AWS → the Vega app, which runs the rep counting, cues, rewards, voice and coaching. The AI coach rewrites the summary and the between-set line in friendlier words but is never allowed to invent a number, and never sees the player's name. The architecture diagram is in the README.
 
 ### Privacy
 

@@ -12,6 +12,7 @@ export type SummaryStats = {
   bestDepth: number | null;
   clean: number;
   sets: number[]; // reps in each set
+  focus: {kept: number; of: number} | null; // the between-set coach's focuses checked this workout
 };
 
 // The coach's "next time" advice under the NEXT TIME label: without that prefix, starting with a capital.
@@ -52,6 +53,12 @@ export const SummaryScreen = ({
           <Text style={styles.sets} testID="sets-line">
             <Text style={styles.setsLabel}>SETS </Text>
             {stats.sets.join(' · ')}
+          </Text>
+        ) : null}
+        {stats.focus?.of ? (
+          <Text style={styles.sets} testID="focus-line">
+            <Text style={styles.setsLabel}>FOCUS KEPT </Text>
+            {stats.focus.kept} of {stats.focus.of}
           </Text>
         ) : null}
       </View>

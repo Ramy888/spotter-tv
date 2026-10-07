@@ -13,6 +13,7 @@ export type ExerciseProgress = {
   repsPerSet?: number; // the next workout's reps per set (see plan.ts)
   bestDepth: number | null; // deepest bottom angle ever (lower is deeper)
   sessions: number;
+  focusKept?: number; // between-set focuses kept, all time (docs/set-coach.md)
 };
 export type Progress = Partial<Record<ExerciseId, ExerciseProgress>>;
 export type Profile = {id: string; name: string; restSec?: number}; // restSec: rest between sets; absent = Auto
@@ -171,10 +172,12 @@ export class ProfileStore {
     await this.loadProgress();
   }
 
-  // Records a finished workout for the active player: total reps, and reps per set for next time.
-  async recordSession(exercise: ExerciseId, reps: number, repsPerSet: number, bestDepth: number | null) {
+  // Records a finished workout for the active player: total reps, reps per set for next time, and
+  // the coach's focuses kept.
+  async recordSession(exercise: ExerciseId, reps: number, repsPerSet: number, bestDepth: number | null, focusKept = 0) {
     const prev = this.progress[exercise];
     const best = [prev?.bestDepth, bestDepth].filter((d): d is number => d != null);
+    const kept = (prev?.focusKept ?? 0) + focusKept;
     this.progress = {
       ...this.progress,
       [exercise]: {
@@ -183,6 +186,7 @@ export class ProfileStore {
         repsPerSet,
         bestDepth: best.length ? Math.min(...best) : null,
         sessions: (prev?.sessions ?? 0) + 1,
+        ...(kept > 0 && {focusKept: kept}),
       },
     };
     await this.store.setItem(keyProgress(this.doc.activeId), JSON.stringify(this.progress));

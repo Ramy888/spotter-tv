@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { nameClipKey, parseNameClipPath } from "./voiceNames.mjs"; // copied from lambda/ at synth time
+import { lineClipKey, parseLineClipPath } from "./setCoach.mjs"; // also copied, with coach.mjs
 
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -43,6 +44,16 @@ async function nameAudio(path) {
   return { body: Buffer.from(item.audio).toString("base64"), type: "audio/mpeg", cache: "max-age=86400", base64: true };
 }
 
+// Between-set coach lines, made by the relay (lambda/relay.mjs setCoach) under a random id and kept
+// for an hour. Read-only, like name clips.
+async function lineAudio(path) {
+  const id = parseLineClipPath(path);
+  if (!id) return undefined;
+  const item = (await db.send(new GetCommand({ TableName: process.env.TABLE_NAME, Key: { pk: lineClipKey(id) } }))).Item;
+  if (!item?.audio) return undefined;
+  return { body: Buffer.from(item.audio).toString("base64"), type: "audio/mpeg", cache: "max-age=3600", base64: true };
+}
+
 // The phone's home-screen icon (brand/, rendered by brand/render.mjs).
 function icon(path) {
   if (path !== "/apple-touch-icon.png") return undefined;
@@ -53,7 +64,7 @@ function icon(path) {
 
 export async function handler(event) {
   const isGet = event.requestContext?.http?.method === "GET";
-  const route = isGet ? routes[event.rawPath] ?? audio(event.rawPath) ?? icon(event.rawPath) ?? (await nameAudio(event.rawPath)) : undefined;
+  const route = isGet ? routes[event.rawPath] ?? audio(event.rawPath) ?? icon(event.rawPath) ?? (await nameAudio(event.rawPath)) ?? (await lineAudio(event.rawPath)) : undefined;
   if (!route) return { statusCode: 404, headers: { "content-type": "text/plain" }, body: "not found" };
   return {
     statusCode: 200,

@@ -37,7 +37,8 @@
 <tr><td>Pairing code and connection ids</td><td>Connecting your phone to your TV</td><td>Our server (Amazon Web Services). Expires after 2 hours and is then removed automatically.</td></tr>
 <tr><td>Player names and workout progress</td><td>"Who's training?", your history and next targets</td><td><strong>Only on your TV</strong> (device storage). Delete by uninstalling the app.</td></tr>
 <tr><td>A player's name (optional)</td><td>So the coach can say it ("Let's go, Ramy!")</td><td>Sent to Amazon Polly to make 5 short voice clips. The clips are kept on our server for 60 days, then removed automatically. Skip naming a player to avoid this.</td></tr>
-<tr><td>Workout numbers (reps, pace, depth), never your name</td><td>Optional AI rewrite of the coach's summary</td><td>Sent to an AI model (Cloudflare Workers AI). Not stored by us.</td></tr>
+<tr><td>Workout numbers (reps, pace, depth), never your name</td><td>Optional AI rewrite of the coach's summary and of its tip between sets</td><td>Sent to an AI model (Cloudflare Workers AI). Not stored by us.</td></tr>
+<tr><td>The coach's tip between sets, with the player's name if there is one</td><td>So the coach can say it out loud</td><td>Sent to Amazon Polly. The voice clip is kept on our server for 1 hour, then removed automatically.</td></tr>
 <tr><td>Server logs</td><td>Keeping the service running</td><td>Amazon Web Services, deleted after 7 days. No video, no names.</td></tr>
 </table>
 

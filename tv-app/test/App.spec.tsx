@@ -5,7 +5,7 @@ import * as React from 'react';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AudioPlayer} from './mocks/w3cmedia'; // what jest.config maps the Vega media player to
-import {App} from '../src/App';
+import {App, SET_END_HOLD_MS} from '../src/App';
 
 class FakeSocket {
   static OPEN = 1;
@@ -258,7 +258,7 @@ describe('App', () => {
         }
       }
     }
-    act(() => jest.advanceTimersByTime(200));
+    act(() => jest.advanceTimersByTime(200 + SET_END_HOLD_MS)); // past the hold when a set ends
     return t;
   };
 
@@ -301,15 +301,55 @@ describe('App', () => {
       const t = doReps(12);
       expect(screen.getByTestId('rest')).toBeTruthy();
       expect(screen.getByTestId('rest-left')).toHaveTextContent('60');
-      doReps(2, t); // still moving during the rest
+      doReps(2, t); // still moving during the rest (this takes about a second)
       advance(10_000); // then out of view: the phone sends nothing, and the TV keeps resting
-      expect(screen.getByTestId('rest-left')).toHaveTextContent('50');
+      expect(screen.getByTestId('rest-left')).toHaveTextContent('49');
       expect(screen.getByTestId('set-label')).toHaveTextContent('Set 1 of 3');
       fireEvent.press(screen.getByTestId('skip-rest'));
       expect(screen.getByLabelText('0 squats')).toBeTruthy();
       fireEvent.press(screen.getByTestId('finish'));
       expect(screen.getByTestId('summary-headline')).toHaveTextContent('12 squats done'); // not 14
       expect(screen.getByTestId('sets-line')).toHaveTextContent('SETS 12');
+      jest.useRealTimers();
+    });
+
+    // One squat's frames, without moving the clock past the set-end hold.
+    const oneRep = (from: number) => {
+      let t = from;
+      for (const [offset, n] of [[0, 30], [0.2, 40], [0, 30]] as const) {
+        for (let i = 0; i < n; i++) {
+          t += 33;
+          deliver({...frame(offset), t});
+        }
+      }
+      act(() => jest.advanceTimersByTime(200));
+      return t;
+    };
+
+    it('holds the finished set on screen briefly, so the last count is heard there', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      const t = doReps(11);
+      oneRep(t);
+      expect(screen.getByLabelText('12 squats')).toBeTruthy();
+      expect(screen.queryByTestId('rest')).toBeNull();
+      advance(SET_END_HOLD_MS);
+      expect(screen.getByTestId('rest')).toBeTruthy();
+      jest.useRealTimers();
+    });
+
+    it('a Finish during the hold ends the workout, and the hold starts nothing afterwards', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startSquats(screen);
+      const t = doReps(11);
+      oneRep(t);
+      fireEvent.press(screen.getByTestId('finish'));
+      fireEvent.press(screen.getByTestId('again')); // a new workout right away
+      advance(SET_END_HOLD_MS + 500);
+      expect(screen.queryByTestId('rest')).toBeNull();
+      expect(screen.getByTestId('set-label')).toHaveTextContent('Set 1 of 3');
       jest.useRealTimers();
     });
 
@@ -764,4 +804,139 @@ describe('App', () => {
     expect(second.getByTestId('pick-squat')).toHaveTextContent(/3 × 12 · last time 1/);
     jest.useRealTimers();
   });
+
+  describe('between-set coach', () => {
+    const advance = (ms: number) => {
+      for (let t = 0; t < ms; t += 250) {
+        act(() => jest.advanceTimersByTime(250));
+      }
+    };
+    const setCoachRequests = () =>
+      FakeSocket.last.sent.map((m) => JSON.parse(m)).filter((m) => m.action === 'set-coach');
+    const group = (clip: string) => clip.replace(/-\d+$/, '');
+    const LINE = 'line-0123456789abcdef';
+
+    // Phone voice, so every spoken clip shows up in what the TV sends.
+    const startOnPhoneVoice = (screen: ReturnType<typeof render>) => {
+      deliver({type: 'session', code: 'KH7VET'});
+      deliver({...frame(0), t: 0});
+      act(() => jest.advanceTimersByTime(200));
+      fireEvent.press(screen.getByTestId('voice-mode')); // Phone
+      fireEvent.press(screen.getByTestId('pick-squat'));
+    };
+
+    it('gives a focus for the next set at rest, on screen and out loud, and asks the relay to rewrite it', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startOnPhoneVoice(screen);
+      doReps(12); // 12 clean squats
+      expect(screen.getByTestId('coach-card')).toHaveTextContent(/SAME AGAIN/);
+      expect(screen.getByTestId('coach-line')).toHaveTextContent('12 clean squats. Next set: the same clean form again.');
+      expect(screen.queryByTestId('focus-kept')).toBeNull();
+      expect(saidClips().slice(-2).map(group)).toEqual(['rest-start', 'focus-keep']);
+      expect(setCoachRequests()).toEqual([
+        {
+          action: 'set-coach',
+          exercise: 'squat',
+          set: 2,
+          sets: 3,
+          focus: 'keep',
+          line: '12 clean squats. Next set: the same clean form again.',
+          facts: expect.objectContaining({reps: 12, target: 12, shallow: 0, rushed: 0, leftFrame: 0}),
+        },
+      ]);
+      jest.useRealTimers();
+    });
+
+    it('shows the AI line when it arrives and says it halfway through the rest', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startOnPhoneVoice(screen);
+      doReps(12);
+      deliver({type: 'set-coach', set: 2, line: 'Twelve clean reps! Keep that exact form for set two.', clip: LINE});
+      expect(screen.getByTestId('coach-line')).toHaveTextContent('Twelve clean reps! Keep that exact form for set two.');
+      expect(screen.getByTestId('coach-card')).toHaveTextContent(/AI/);
+      expect(saidClips()).not.toContain(LINE);
+      advance(31_000); // past halfway of the 60 s rest
+      expect(saidClips()).toContain(LINE);
+      expect(saidClips().map(group)).not.toContain('rest-mid');
+      jest.useRealTimers();
+    });
+
+    it('says the usual halfway line when the AI line is late, then the AI line if there is time', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startOnPhoneVoice(screen);
+      doReps(12);
+      advance(31_000);
+      expect(saidClips().map(group)).toContain('rest-mid');
+      deliver({type: 'set-coach', set: 2, line: 'Same form again.', clip: LINE});
+      expect(saidClips()).toContain(LINE);
+      jest.useRealTimers();
+    });
+
+    it('ignores a reply for another set, one that comes after the rest, and a bad clip id', () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startOnPhoneVoice(screen);
+      doReps(12);
+      deliver({type: 'set-coach', set: 3, line: 'Wrong set.', clip: LINE});
+      expect(screen.getByTestId('coach-line')).toHaveTextContent(/12 clean squats/);
+      deliver({type: 'set-coach', set: 2, line: 'Bad clip.', clip: '../secret'});
+      expect(screen.getByTestId('coach-line')).toHaveTextContent('Bad clip.');
+      advance(31_000);
+      expect(saidClips()).not.toContain('../secret');
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      deliver({type: 'set-coach', set: 2, line: 'Too late.', clip: LINE});
+      expect(screen.queryByTestId('coach-card')).toBeNull();
+      expect(saidClips()).not.toContain(LINE);
+      jest.useRealTimers();
+    });
+
+    it('shows the focus during the next set, celebrates it kept, and counts it on the summary and the profile', async () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      await flushAsync();
+      startOnPhoneVoice(screen);
+      let t = doReps(12);
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      expect(screen.getByTestId('focus-chip')).toHaveTextContent('FOCUS · SAME AGAIN');
+      t = doReps(12, t); // clean again: focus kept
+      expect(screen.getByTestId('focus-kept')).toBeTruthy();
+      expect(saidClips().slice(-2).map(group)).toEqual(['focus-kept', 'focus-keep']);
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      doReps(12, t);
+      expect(screen.getByTestId('focus-line')).toHaveTextContent('FOCUS KEPT 2 of 2');
+      await flushAsync();
+      const saved = JSON.parse((await AsyncStorage.getItem('spotter:v1:progress:p1'))!);
+      expect(saved.squat.focusKept).toBe(2);
+      jest.useRealTimers();
+    });
+
+    it("doesn't judge a set cut short, and shows no focus line without a checked focus", () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      startOnPhoneVoice(screen);
+      const t = doReps(12);
+      fireEvent.press(screen.getByTestId('skip-rest'));
+      doReps(3, t);
+      fireEvent.press(screen.getByTestId('finish'));
+      expect(screen.getByTestId('sets-line')).toHaveTextContent('SETS 12 · 3');
+      expect(screen.queryByTestId('focus-line')).toBeNull();
+      jest.useRealTimers();
+    });
+
+    it("sends a named player's name with the request (for the voice), never a placeholder", async () => {
+      jest.useFakeTimers();
+      const screen = render(<App />);
+      await flushAsync();
+      toPicker();
+      await renameTo(screen, 'Ramy');
+      fireEvent.press(screen.getByTestId('pick-squat'));
+      doReps(12);
+      expect(setCoachRequests()[0].name).toBe('Ramy');
+      jest.useRealTimers();
+    });
+  });
 });
+

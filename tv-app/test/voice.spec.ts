@@ -146,4 +146,21 @@ describe('VoiceCoach', () => {
       expect(v.nextSet(3, 3).map(groupOf)).toEqual(['last-set']);
     });
   });
+
+  it("says only the count on a set's last rep: the set-end line comes right after", () => {
+    const v = new VoiceCoach(3);
+    v.update(rep(1), null, 1000);
+    v.update(rep(2), null, 4000);
+    expect(v.update(rep(3), reward('target'), 7000)).toEqual(['count-3']);
+  });
+
+  it('opens a rest with the focus for the next set, and "Focus kept!" when the last one was kept', () => {
+    const v = new VoiceCoach();
+    expect(v.restStart().map(groupOf)).toEqual(['rest-start']);
+    expect(v.restStart('depth').map(groupOf)).toEqual(['rest-start', 'focus-depth']);
+    expect(v.restStart('keep', true).map(groupOf)).toEqual(['focus-kept', 'focus-keep']);
+    for (const group of ['focus-frame', 'focus-depth', 'focus-tempo', 'focus-keep', 'focus-kept']) {
+      expect(manifest.groups).toHaveProperty(group);
+    }
+  });
 });

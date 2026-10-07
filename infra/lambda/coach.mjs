@@ -7,7 +7,7 @@ export const COACH_COOLDOWN_SECONDS = 10;
 const EXERCISES = new Set(["squat", "lunge", "jumping-jack"]);
 const LIMITS = { headline: 60, insight: 160, next: 140, insights: 4 };
 // Bodyweight training, no medical advice: the model must not wander here.
-const BANNED = /\b(weights?|kg|lbs?|pounds?|dumbbells?|barbells?|kettlebells?|injur\w*|pain|doctor|physio\w*|medical)\b/i;
+export const BANNED = /\b(weights?|kg|lbs?|pounds?|dumbbells?|barbells?|kettlebells?|injur\w*|pain|doctor|physio\w*|medical)\b/i;
 
 const isText = (v, max) => typeof v === "string" && v.trim().length > 0 && v.length <= max;
 

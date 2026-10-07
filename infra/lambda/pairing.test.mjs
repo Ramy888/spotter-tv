@@ -41,6 +41,10 @@ test("parseMessage rejects malformed or oversized input", () => {
   assert.equal(parseMessage("x".repeat(MAX_FRAME_BYTES + 1)), null);
 });
 
+test("parseMessage passes a set-coach request on for setCoach.mjs to validate", () => {
+  assert.deepEqual(parseMessage('{"action":"set-coach","set":2}'), { type: "set-coach", msg: { action: "set-coach", set: 2 } });
+});
+
 test("parseMessage accepts a say request with valid clip ids only", () => {
   assert.deepEqual(parseMessage('{"action":"say","clips":["count-5","praise-3"]}'), { type: "say", clips: ["count-5", "praise-3"] });
   assert.equal(parseMessage('{"action":"say","clips":[]}'), null);

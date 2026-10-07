@@ -26,7 +26,13 @@ export type WorkoutView = {
   paceMs: number | null;
   streak: number;
   bestDepth: number | null;
+  focus: string | null; // the coach's focus for this set (its title), from the rest before it
+  coach: CoachCard | null; // shown while resting
 };
+
+// The between-set coach (docs/set-coach.md): what to work on in the next set, and whether the
+// last set kept the previous focus.
+export type CoachCard = {title: string; line: string; ai: boolean; kept: boolean | null};
 
 // Knee gauge: 180° (standing) is empty, 60° is full; the marker is the depth that counts.
 const gaugeFill = (deg: number) => Math.min(1, Math.max(0, (180 - deg) / 120));
@@ -61,6 +67,11 @@ export const WorkoutScreen = ({
             {playerName ? `${playerName} · ` : ''}Set {w.set} of {w.sets}
           </Text>
           <Text style={styles.name}>{exercise.name.toUpperCase()}</Text>
+          {w.focus && !resting ? (
+            <Text style={styles.focus} testID="focus-chip">
+              FOCUS · {w.focus.toUpperCase()}
+            </Text>
+          ) : null}
         </View>
         {angleBased ? (
           <View>
@@ -124,13 +135,17 @@ export const WorkoutScreen = ({
       </View>
 
       <View style={styles.right}>
-        <View>
-          <StatTile label="PACE" value={w.paceMs == null ? '—' : `${(w.paceMs / 1000).toFixed(1)} s`} />
-          <View style={styles.gap} />
-          <StatTile label="STREAK" value={`${w.streak} clean`} />
-          <View style={styles.gap} />
-          <StatTile label="BEST DEPTH" value={w.bestDepth == null ? '—' : `${w.bestDepth}°`} />
-        </View>
+        {resting && w.coach ? (
+          <CoachPanel card={w.coach} />
+        ) : (
+          <View>
+            <StatTile label="PACE" value={w.paceMs == null ? '—' : `${(w.paceMs / 1000).toFixed(1)} s`} />
+            <View style={styles.gap} />
+            <StatTile label="STREAK" value={`${w.streak} clean`} />
+            <View style={styles.gap} />
+            <StatTile label="BEST DEPTH" value={w.bestDepth == null ? '—' : `${w.bestDepth}°`} />
+          </View>
+        )}
         <View>
           <Text style={styles.fps}>{fps} frames/s</Text>
           {resting ? (
@@ -145,6 +160,25 @@ export const WorkoutScreen = ({
     </View>
   );
 };
+
+const CoachPanel = ({card}: {card: CoachCard}) => (
+  <View testID="coach-card">
+    {card.kept ? (
+      <Text style={styles.kept} testID="focus-kept">
+        🎯 FOCUS KEPT
+      </Text>
+    ) : null}
+    <View style={styles.coach}>
+      <Text style={styles.coachLabel}>
+        COACH{card.ai ? <Text style={styles.coachAi}> · ✨ AI</Text> : null}
+      </Text>
+      <Text style={styles.coachTitle}>{card.title.toUpperCase()}</Text>
+      <Text style={styles.coachLine} testID="coach-line">
+        {card.line}
+      </Text>
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   root: {
@@ -183,5 +217,18 @@ const styles = StyleSheet.create({
   cueText: {color: color.onCue, fontFamily: font.display, fontSize: 30, letterSpacing: 1},
   badgeSlot: {position: 'absolute', bottom: 0, alignSelf: 'center', minHeight: 56, justifyContent: 'center'},
   gap: {height: 16},
+  focus: {color: color.cue, fontFamily: font.bodyBold, fontSize: 16, letterSpacing: 2, marginTop: 8},
+  kept: {color: color.accent, fontFamily: font.display, fontSize: 26, letterSpacing: 1, marginBottom: 12},
+  coach: {
+    backgroundColor: color.cueSurface,
+    borderColor: color.cue,
+    borderWidth: 2,
+    borderRadius: 16,
+    padding: 18,
+  },
+  coachLabel: {color: color.cue, fontFamily: font.bodyBold, fontSize: 14, letterSpacing: 3},
+  coachAi: {color: color.textSecondary, fontFamily: font.bodyMedium, letterSpacing: 1},
+  coachTitle: {color: color.text, fontFamily: font.display, fontSize: 32, marginTop: 6},
+  coachLine: {color: color.textIdle, fontFamily: font.body, fontSize: 19, lineHeight: 26, marginTop: 8},
   fps: {color: color.textSecondary, fontFamily: font.body, fontSize: 16, marginBottom: 14, textAlign: 'right'},
 });

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useEffect, useRef, useState} from 'react';
 import {ImageSourcePropType} from 'react-native';
 import {CoachSummary, coach} from './coach';
-import {PHONE_URL, RELAY_URL} from './config';
+import {PHONE_URL, RELAY_URL, SET_COACH_AI} from './config';
 import {ExerciseDef, ExerciseId} from './exercises';
 import {Point} from './exercises/pose';
 import {Cue, Exercise} from './exercises/types';
@@ -18,8 +18,10 @@ import {WhoScreen} from './screens/WhoScreen';
 import {WorkoutScreen} from './screens/WorkoutScreen';
 import {Plan, REST_CHOICES, planFor} from './plan';
 import {Session, currentSetReps, endSet, recordUpdate, startSession} from './session';
+import {FOCUS_TITLE, Focus, SetFacts, focusKept, focusLine, pickFocus, setFacts} from './setCoach';
+import {CoachCard} from './screens/WorkoutScreen';
 import {VoiceCoach} from './voice';
-import {VoiceMode, VoicePlayer} from './voicePlayer';
+import {VoiceMode, VoicePlayer, isLineClip} from './voicePlayer';
 import {Stage} from './Stage';
 
 // connecting -> waiting (pairing code shown) -> picking (phone connected) -> active (workout) -> summary
@@ -41,6 +43,14 @@ const VOICE_NAME_RETRY_MS = 15 * 1000;
 const UI_INTERVAL_MS = 100;
 const REST_TICK_MS = 250;
 const CUE_SHOW_MS = 2500;
+// The between-set coach's AI line (docs/set-coach.md): only asked for when the rest is long enough
+// to get it back, and spoken late only if it won't run into the 3-2-1.
+const SET_COACH_MIN_REST_SEC = 20;
+const LATE_LINE_MIN_LEFT_SEC = 8;
+const MAX_LINE_CHARS = 200;
+// A finished set stays on screen (full ring, last count) this long, so the coach's last count is
+// heard before the rest or the summary takes over.
+export const SET_END_HOLD_MS = 1200;
 
 const VOICE_LABEL: Record<VoiceMode, string> = {tv: 'TV', phone: 'Phone', off: 'Off'};
 const NEXT_VOICE: Record<VoiceMode, VoiceMode> = {tv: 'phone', phone: 'off', off: 'tv'};
@@ -61,6 +71,8 @@ type Workout = {
   paceMs: number | null;
   streak: number;
   bestDepth: number | null;
+  focus: string | null;
+  coach: CoachCard | null;
 };
 const EMPTY_WORKOUT: Workout = {
   reps: 0,
@@ -77,6 +89,8 @@ const EMPTY_WORKOUT: Workout = {
   paceMs: null,
   streak: 0,
   bestDepth: null,
+  focus: null,
+  coach: null,
 };
 
 const average = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -122,6 +136,12 @@ export const App = () => {
   const restTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const restEndsAt = useRef(0);
   const restSaid = useRef(new Set<string>()); // rest lines already spoken this rest
+  // The between-set coach: the focus set for a coming set, each focus checked this workout, and
+  // the AI line (a relay-made clip) for the current rest once it arrives.
+  const setFocus = useRef<{forSet: number; focus: Focus} | null>(null);
+  const focusResults = useRef<boolean[]>([]);
+  const coachLine = useRef<{forSet: number; clip: string} | null>(null);
+  const setCoachReply = useRef<(msg: Record<string, unknown>) => void>(() => {});
   const screen = useRef<Screen>('pick');
   const socket = useRef<WebSocket | null>(null);
   // True while a coach request for the summary on screen is outstanding.
@@ -132,6 +152,7 @@ export const App = () => {
   const voiceNameAsked = useRef({name: '', at: 0});
   const nameFromPhone = useRef<(name: string) => void>(() => {});
   const setDone = useRef<() => void>(() => {});
+  const setEndTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Speaks on the TV; if TV audio fails it switches itself to the phone (and the setting follows).
   const voice = useRef(
     new VoicePlayer(
@@ -160,6 +181,9 @@ export const App = () => {
     exerciseDef.current = def;
     detector.current = def.create();
     awaitingCoach.current = false;
+    setFocus.current = null;
+    focusResults.current = [];
+    coachLine.current = null;
     const restChoice = profiles.current.profiles.length ? profiles.current.active.restSec : undefined; // undefined until loaded
     plan.current = planFor(def.id, profiles.current.activeProgress[def.id], restChoice);
     const {sets, reps: target, restSec} = plan.current;
@@ -189,13 +213,91 @@ export const App = () => {
     detector.current = null; // frames keep coming during the rest; they don't count
     restEndsAt.current = Date.now() + plan.current.restSec * 1000;
     restSaid.current = new Set();
-    if (voiceCoach.current) {
-      voice.current.say(voiceCoach.current.restStart());
+    coachLine.current = null;
+    const kept = checkFocus();
+    const done = session.current.sets.length;
+    const facts = setFacts(session.current, plan.current, done - 1);
+    const focus = facts ? pickFocus(facts) : null;
+    let coachCard: CoachCard | null = null;
+    if (facts && focus) {
+      setFocus.current = {forSet: done + 1, focus};
+      coachCard = {title: FOCUS_TITLE[focus], line: focusLine(focus, facts), ai: false, kept};
+      requestSetCoach(done + 1, focus, coachCard.line, facts);
     }
-    latest.current = {...latest.current, stage: 'rest', restLeft: plan.current.restSec, cue: null};
+    if (voiceCoach.current) {
+      voice.current.say(voiceCoach.current.restStart(focus, kept === true));
+    }
+    latest.current = {
+      ...latest.current,
+      stage: 'rest',
+      restLeft: plan.current.restSec,
+      cue: null,
+      coach: coachCard,
+      focus: focus && FOCUS_TITLE[focus],
+    };
     setWorkout(latest.current);
     sendStatus();
     restTimer.current = setInterval(tickRest, REST_TICK_MS);
+  };
+
+  // The set just finished: did it keep the focus the coach gave it? Null when there was none or
+  // the set was cut short. Each focus is checked once.
+  const checkFocus = (): boolean | null => {
+    const s = session.current;
+    const f = setFocus.current;
+    if (!s || !f || s.sets.length !== f.forSet) {
+      return null;
+    }
+    setFocus.current = null;
+    const facts = setFacts(s, plan.current, f.forSet - 1);
+    const kept = facts ? focusKept(f.focus, facts) : null;
+    if (kept != null) {
+      focusResults.current.push(kept);
+    }
+    return kept;
+  };
+
+  // Asks the relay to rewrite the coach's line and voice it (docs/set-coach.md). The rule-based
+  // line is already on screen; the reply only replaces its wording.
+  const requestSetCoach = (forSet: number, focus: Focus, line: string, facts: SetFacts) => {
+    if (!SET_COACH_AI || plan.current.restSec < SET_COACH_MIN_REST_SEC || socket.current?.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    const {exercise: id, ...numbers} = facts;
+    const name = profiles.current.profiles.length ? spokenName(profiles.current.active.name) : null;
+    socket.current.send(
+      JSON.stringify({
+        action: 'set-coach',
+        exercise: id,
+        set: forSet,
+        sets: plan.current.sets,
+        focus,
+        line,
+        facts: numbers,
+        ...(name && {name}), // spoken by Polly only; the relay never gives it to the model
+      }),
+    );
+  };
+
+  // The relay's answer: shown and voiced only if it's for the rest on screen right now.
+  setCoachReply.current = (msg) => {
+    const f = setFocus.current;
+    const w = latest.current;
+    const line = typeof msg.line === 'string' ? msg.line.trim().slice(0, MAX_LINE_CHARS) : '';
+    if (!f || msg.set !== f.forSet || w.stage !== 'rest' || !w.coach || screen.current !== 'workout' || !line) {
+      return;
+    }
+    latest.current = {...w, coach: {...w.coach, line, ai: true}};
+    setWorkout(latest.current);
+    if (typeof msg.clip !== 'string' || !isLineClip(msg.clip)) {
+      return;
+    }
+    coachLine.current = {forSet: f.forSet, clip: msg.clip};
+    // Halfway already passed with the usual line: say it now, unless the countdown is close.
+    if (restSaid.current.has('mid') && !restSaid.current.has('line') && w.restLeft > LATE_LINE_MIN_LEFT_SEC) {
+      restSaid.current.add('line');
+      voice.current.say([msg.clip]);
+    }
   };
 
   const tickRest = () => {
@@ -211,7 +313,15 @@ export const App = () => {
       }
     };
     if (left <= Math.floor(plan.current.restSec / 2)) {
-      say('mid', () => voiceCoach.current!.restMid());
+      // The AI line if it's here (it says more than the usual halfway line), otherwise the usual one.
+      const line = coachLine.current?.forSet === setFocus.current?.forSet ? coachLine.current?.clip : undefined;
+      say('mid', () => {
+        if (line) {
+          restSaid.current.add('line');
+          return [line];
+        }
+        return voiceCoach.current!.restMid();
+      });
     }
     if (left <= 3) {
       say(`count-${left}`, () => [`count-${left}`]);
@@ -243,7 +353,9 @@ export const App = () => {
       metric: null,
       cue: null,
       restLeft: 0,
+      coach: null,
     };
+    coachLine.current = null;
     setWorkout(latest.current);
     sendStatus();
   };
@@ -271,6 +383,8 @@ export const App = () => {
       clearInterval(restTimer.current);
       restTimer.current = undefined;
     }
+    clearTimeout(setEndTimer.current); // a set-end hold must not end a set of a later workout
+    setEndTimer.current = undefined;
   };
 
   setDone.current = completeSet;
@@ -317,11 +431,16 @@ export const App = () => {
     screen.current = 'summary';
     if (session.current) {
       endSet(session.current); // a set cut short still counts
+      checkFocus();
+      setFocus.current = null;
+      coachLine.current = null;
+      const results = focusResults.current;
+      const keptCount = results.filter(Boolean).length;
       const result = coach(session.current, plan.current);
       const done = session.current;
       const doneStats = sessionStats(done);
       profiles.current
-        .recordSession(done.exercise, done.reps.length, result.target ?? plan.current.reps, doneStats.bestDepth)
+        .recordSession(done.exercise, done.reps.length, result.target ?? plan.current.reps, doneStats.bestDepth, keptCount)
         .then(() => setHistory(profiles.current.activeProgress))
         .catch(() => {}); // saving is best effort; the workout itself already happened
       setSummaryStats({
@@ -329,6 +448,7 @@ export const App = () => {
         reps: done.reps.length,
         clean: done.reps.length - done.cues.slower,
         sets: done.sets,
+        focus: results.length ? {kept: keptCount, of: results.length} : null,
       });
       setSummaryArt(done.reps.length > 0 ? nextArt(done.exercise) : null); // a reward for finishing the set
       setSummary(result);
@@ -453,6 +573,8 @@ export const App = () => {
         clearInterval(restTimer.current);
         restTimer.current = undefined;
       }
+      clearTimeout(setEndTimer.current);
+      setEndTimer.current = undefined;
     };
 
     const phoneGone = () => {
@@ -519,7 +641,8 @@ export const App = () => {
           sendStatus();
         }
         if (u.rep && session.current && currentSetReps(session.current) >= plan.current.reps) {
-          setDone.current();
+          detector.current = null; // the set is done; frames during the hold don't count
+          setEndTimer.current = setTimeout(() => setDone.current(), SET_END_HOLD_MS);
         }
       }
       if (!uiTimer.current) {
@@ -557,6 +680,8 @@ export const App = () => {
             setAiCoached(true);
           }
           awaitingCoach.current = false;
+        } else if (msg.type === 'set-coach') {
+          setCoachReply.current(msg);
         } else if (msg.type === 'name') {
           if (typeof msg.name === 'string') {
             nameFromPhone.current(msg.name);

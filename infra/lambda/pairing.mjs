@@ -48,6 +48,7 @@ export function parseMessage(body) {
   }
   if (msg?.action === "host") return { type: "host" };
   if (msg?.action === "coach") return { type: "coach", msg };
+  if (msg?.action === "set-coach") return { type: "set-coach", msg }; // validated in setCoach.mjs
   if (msg?.action === "status") return parseStatus(msg);
   if (msg?.action === "name-prompt") return typeof msg.open === "boolean" ? { type: "name-prompt", open: msg.open } : null;
   if (msg?.action === "name") {

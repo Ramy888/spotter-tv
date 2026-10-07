@@ -77,7 +77,52 @@ describe('VoicePlayer', () => {
     expect(sent).toEqual([['count-1']]);
   });
 
-  it('keeps only the newest clips when it falls behind', async () => {
+  it('plays a coach line from the relay, and skips one that fails without leaving the TV', async () => {
+    const sent: string[][] = [];
+    const ok = new FakePlayer();
+    const v = new VoicePlayer('tv', (c) => sent.push(c), undefined, () => ok as never);
+    v.say(['line-0123456789abcdef']);
+    await flush();
+    expect(ok.played).toEqual(['line-0123456789abcdef.mp3']);
+
+    const broken = new FakePlayer(null, /line-/);
+    const w = new VoicePlayer('tv', (c) => sent.push(c), undefined, () => broken as never);
+    w.say(['line-0123456789abcdef', 'count-3']);
+    await flush();
+    await flush();
+    expect(broken.played).toEqual(['count-3.mp3']);
+    expect(w.mode).toBe('tv');
+    expect(sent).toEqual([]);
+  });
+
+  it('skips a focus clip the server does not have yet, and keeps the voice on the TV', async () => {
+    const sent: string[][] = [];
+    const fake = new FakePlayer(null, /focus-/);
+    const v = new VoicePlayer('tv', (c) => sent.push(c), undefined, () => fake as never);
+    v.say(['focus-keep-1', 'set-2-1']);
+    await flush();
+    await flush();
+    expect(fake.played).toEqual(['set-2-1.mp3']);
+    expect(v.mode).toBe('tv');
+    expect(sent).toEqual([]);
+  });
+
+  it('ignores a late second report of a failed clip (play() rejected, then an error event)', async () => {
+    const sent: string[][] = [];
+    const fake = new FakePlayer(null, /focus-/);
+    const v = new VoicePlayer('tv', (c) => sent.push(c), undefined, () => fake as never);
+    v.say(['focus-keep-1']);
+    await flush();
+    fake.error(); // the late second report of the same failure, with nothing playing
+    await flush();
+    v.say(['set-2-1']);
+    await flush();
+    expect(v.mode).toBe('tv');
+    expect(sent).toEqual([]);
+    expect(fake.played).toEqual(['set-2-1.mp3']);
+  });
+
+  it('never drops a count for a phrase: a new count drops the phrases still waiting', async () => {
     const fake = new FakePlayer();
     const v = new VoicePlayer('tv', () => {}, undefined, () => fake as never);
     v.say(['count-1']);
@@ -88,7 +133,21 @@ describe('VoicePlayer', () => {
       fake.end();
       await flush();
     }
-    expect(fake.played).toEqual(['count-1.mp3', 'praise-1.mp3', 'count-3.mp3', 'praise-2.mp3']);
+    expect(fake.played).toEqual(['count-1.mp3', 'count-2.mp3', 'count-3.mp3', 'praise-2.mp3']);
+  });
+
+  it('keeps the last count when the set-end lines queue up behind it', async () => {
+    const fake = new FakePlayer();
+    const v = new VoicePlayer('tv', () => {}, undefined, () => fake as never);
+    v.say(['count-11', 'near-target-1-2']); // a long phrase still playing
+    v.say(['count-12', 'target-1']);
+    v.say(['rest-start-1', 'focus-keep-1']);
+    await flush();
+    for (let i = 0; i < 4; i++) {
+      fake.end();
+      await flush();
+    }
+    expect(fake.played).toEqual(['count-11.mp3', 'count-12.mp3', 'rest-start-1.mp3', 'focus-keep-1.mp3']);
   });
 
   describe('with a player name', () => {

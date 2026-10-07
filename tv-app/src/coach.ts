@@ -11,8 +11,8 @@ export type CoachSummary = {
   target: number | null; // reps per set for the next workout
 };
 
-const DEPTH_FADE_DEG = 8; // second half this much shallower (on average) counts as fading
-const FAST_REP_MS = 1200;
+export const DEPTH_FADE_DEG = 8; // second half this much shallower (on average) counts as fading
+export const FAST_REP_MS = 1200;
 
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;

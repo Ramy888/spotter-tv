@@ -18,8 +18,9 @@ const MODELS = [
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_MESSAGES = 4;
 
-// The shape the relay expects back; the relay validates it again before showing anything.
-const RESPONSE_SCHEMA = {
+// The shapes the relay can ask for; the relay validates the reply again before showing anything.
+// "summary": the workout summary. "line": the between-set coach's line (docs/set-coach.md).
+const SUMMARY_SCHEMA = {
   type: 'object',
   properties: {
     headline: {type: 'string'},
@@ -28,6 +29,11 @@ const RESPONSE_SCHEMA = {
     target: {type: 'integer'},
   },
   required: ['headline', 'insights', 'next', 'target'],
+};
+const LINE_SCHEMA = {
+  type: 'object',
+  properties: {line: {type: 'string'}},
+  required: ['line'],
 };
 
 type Message = {role: 'system' | 'user'; content: string};
@@ -75,7 +81,7 @@ export default {
       return json(413, {error: 'too large'});
     }
 
-    let body: {messages?: unknown; model?: unknown};
+    let body: {messages?: unknown; model?: unknown; shape?: unknown};
     try {
       body = await request.json();
     } catch {
@@ -91,7 +97,7 @@ export default {
       messages: body.messages,
       max_tokens: 1500, // reasoning models spend tokens thinking before they answer
       temperature: 0.4,
-      response_format: {type: 'json_schema', json_schema: RESPONSE_SCHEMA},
+      response_format: {type: 'json_schema', json_schema: body.shape === 'line' ? LINE_SCHEMA : SUMMARY_SCHEMA},
     } as never)) as {response?: unknown; choices?: Array<{message?: {content?: unknown}}>};
 
     // Most models answer in `response`; OpenAI-style models answer in `choices[0].message.content`.

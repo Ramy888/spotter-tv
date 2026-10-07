@@ -1,9 +1,10 @@
-// Calls the configured AI provider for the coach. COACH_PROVIDER=workers-ai (default) or bedrock.
-// Every failure (timeout, HTTP error, invalid reply) returns summary: null, and the TV keeps its
-// rule-based summary.
+// Calls the configured AI provider for the coach: the workout summary, and the between-set line.
+// COACH_PROVIDER=workers-ai (default) or bedrock. Every failure (timeout, HTTP error, invalid reply)
+// returns null, and the TV keeps its rule-based text.
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { COACH_TIMEOUT_MS, buildMessages, rejectionReason, validateCoachReply } from "./coach.mjs";
+import { LINE_MODEL, buildLineMessages, lineRejectionReason } from "./setCoach.mjs";
 
 const PROVIDER = process.env.COACH_PROVIDER ?? "workers-ai";
 let workerSecret; // cached for the life of the Lambda container
@@ -28,11 +29,12 @@ const asObject = (v) => {
   }
 };
 
-async function viaWorkersAi(messages, signal) {
+// `shape`: the reply the Worker asks the model for ("summary" or "line", coach-worker/src/index.ts).
+async function viaWorkersAi(messages, signal, shape, model) {
   const res = await fetch(`${process.env.COACH_WORKER_URL}/coach`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-spotter-secret": await getWorkerSecret() },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, shape, model }),
     signal,
   });
   if (!res.ok) throw new Error(`worker HTTP ${res.status}`);
@@ -54,19 +56,35 @@ async function viaBedrock(messages, signal) {
   return asObject(out.output?.message?.content?.[0]?.text);
 }
 
-export async function requestCoach(facts) {
+// Asks the model, within the coach timeout. `accept(reply)` returns the value to use, or null with a reason.
+async function ask(messages, shape, accept, model) {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), COACH_TIMEOUT_MS);
   try {
-    const call = PROVIDER === "bedrock" ? viaBedrock : viaWorkersAi;
-    const reply = await call(buildMessages(facts), controller.signal);
-    const summary = validateCoachReply(reply, facts);
-    const status = summary ? "ok" : `rejected: ${rejectionReason(reply, facts)}`;
-    return { status, provider: PROVIDER, summary, ms: Date.now() - started };
+    const reply = PROVIDER === "bedrock" ? await viaBedrock(messages, controller.signal) : await viaWorkersAi(messages, controller.signal, shape, model);
+    const { value, reason } = accept(reply);
+    return { status: value ? "ok" : `rejected: ${reason}`, provider: PROVIDER, value, ms: Date.now() - started };
   } catch (err) {
-    return { status: `error: ${err.name}`, provider: PROVIDER, summary: null, ms: Date.now() - started };
+    return { status: `error: ${err.name}`, provider: PROVIDER, value: null, ms: Date.now() - started };
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function requestCoach(facts) {
+  const { value, ...result } = await ask(buildMessages(facts), "summary", (reply) => {
+    const summary = validateCoachReply(reply, facts);
+    return { value: summary, reason: summary ? null : rejectionReason(reply, facts) };
+  });
+  return { ...result, summary: value };
+}
+
+// The between-set line (setCoach.mjs). Returns { status, provider, line, ms }; line is null on any failure.
+export async function requestSetLine(req) {
+  const { value, ...result } = await ask(buildLineMessages(req), "line", (reply) => {
+    const reason = lineRejectionReason(reply, req);
+    return { value: reason ? null : reply.line.trim(), reason };
+  }, LINE_MODEL);
+  return { ...result, line: value };
 }
