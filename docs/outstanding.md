@@ -6,9 +6,9 @@ Open work, newest first. Remove an item when it's done.
 
 The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-rest.png` shows the plain countdown. Retake it on the Vega Virtual Device with the Coach card (do a few half squats in set 1 so the focus is "Full depth"), at 1920×1080 with no transparency, and upload it to both screenshot sections (Fire TV and tablet) with the next version. Don't cancel the 1.1.0 review for it.
 
-## Devpost submission: in progress (2026-10-09)
+## Devpost submission: submitted 2026-10-09 (editable until Oct 23)
 
-- Draft 1205489: all four steps saved (4/5 done); only the final Submit is left (tick the terms, then Submit project). Answers are also in `docs/devpost-additional-info.md`. Video https://youtu.be/9C-6zbNSxhQ.
+- Submission 1205489 submitted. Answers are also in `docs/devpost-additional-info.md`. Video https://youtu.be/9C-6zbNSxhQ, Appstore https://www.amazon.com/dp/B0HLY8788C.
 - YouTube video is Public (2026-10-09).
 - **Repo goes public on 2026-10-19 or 10-20** (3-4 days before the Oct 23 deadline), which the Open Source mini challenge needs (answered Yes). Until then it's private, shared with knmeiss, giolaq, anishamalde, mosesroth, emersonsklar and devposttesting (testing@devpost.com), all with write access, which personal repos can't avoid. Invites expire after 7 days; once the repo is public they no longer matter. Once public, optionally add the GitHub link back to "Try it out" on Devpost.
 - Between-set AI line after half reps: fixed and **deployed 2026-10-09** (live: 7/8 depth lines, 5/6 fade lines pass; a miss keeps the plain line). The demo video predates it: its first rest shows the plain card, the second the AI card.
