@@ -13,6 +13,12 @@ The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-r
 - **Repo goes public on 2026-10-19 or 10-20** (3-4 days before the Oct 23 deadline), which the Open Source mini challenge needs (answered Yes). Until then it's private, shared with knmeiss, giolaq, anishamalde, mosesroth, emersonsklar and devposttesting (testing@devpost.com), all with write access, which personal repos can't avoid. Invites expire after 7 days; once the repo is public they no longer matter. Once public, optionally add the GitHub link back to "Try it out" on Devpost.
 - Between-set AI line after half reps: fixed and **deployed 2026-10-09** (live: 7/8 depth lines, 5/6 fade lines pass; a miss keeps the plain line). The demo video predates it: its first rest shows the plain card, the second the AI card.
 
+## Optional extras (no deadline, do them if there's time)
+
+- **Re-recorded demo take:** the video's first rest shows the plain Coach card because it was recorded before the AI-line fix. A new take would show "✨ AI" there too. The local tooling re-cuts and keeps the narration in sync, but YouTube can't replace a file: a new upload gets a new URL, which must then be updated on Devpost (and set to Public).
+- **Short PDF deck for judges:** 6-8 slides in the Arena look (problem, how it works, architecture, the AI coach that can't invent numbers, live on the Appstore), uploaded to Devpost's Additional info "Upload a File" field (judges only).
+- **Newer rest screenshot for the Appstore:** see "Next store update" above.
+
 ## Before submitting to Devpost (from the Devpost FAQ, 2026-10-07)
 
 - **Repo:** make https://github.com/Ramy888/spotter-tv public (it's private now). `LICENSE` (MIT) is already there, which is all a public repo needs. If it has to stay private instead, add the reviewers as collaborators close to submitting (invites expire after 7 days): knmeiss, giolaq, anishamalde, mosesroth, emersonsklar, and testing@devpost.com.
