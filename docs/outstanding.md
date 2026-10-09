@@ -2,13 +2,15 @@
 
 Open work, newest first. Remove an item when it's done.
 
-## Waiting: Appstore review of 1.1.0
-
-Submitted 2026-10-07 (build 3: the between-set coach, the counting fixes, the Level up logo and new store images). The console estimates it goes live by 2026-10-12, 11:00 PDT. Then update README and devpost.md ("live", version 1.1.0).
-
 ## Next store update: rest screenshot with the Coach card
 
 The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-rest.png` shows the plain countdown. Retake it on the Vega Virtual Device with the Coach card (do a few half squats in set 1 so the focus is "Full depth"), at 1920×1080 with no transparency, and upload it to both screenshot sections (Fire TV and tablet) with the next version. Don't cancel the 1.1.0 review for it.
+
+## Devpost submission: in progress (2026-10-09)
+
+- Draft 1205489: overview and project details saved (story, 14 tags, gallery, thumbnail, video https://youtu.be/9C-6zbNSxhQ). Additional info is filled but **unsaved**: fill country, the three declarations and the two learning questions first, then Save; saving with any required field empty wipes the step. Every answer is in `docs/devpost-additional-info.md`.
+- The YouTube video is **Unlisted**; the rules ask for **Public**.
+- Relay fix for the AI depth line (`infra/lambda/setCoach.mjs`) is in the working tree (uncommitted), **not deployed**: `cd infra && npm run deploy`. Then re-record (`video/capture/record-tv.mjs`, `mix-coach.mjs`) and rebuild (`video/edit/build.mjs`) so rest 1 shows the AI card; the narration stays in sync.
 
 ## Before submitting to Devpost (from the Devpost FAQ, 2026-10-07)
 
