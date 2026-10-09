@@ -41,7 +41,7 @@ Spotter is a new open-source project (MIT license), created during the hackathon
 
 What it is: a Fire TV fitness coach. A phone in any browser tracks your body on-device (MediaPipe) and sends only body points through an AWS WebSocket relay to a Vega OS app (React Native for Vega), which counts full-depth reps, cues your form out loud by name, coaches you between sets, and sums up the workout. It's live on the Amazon Appstore.
 
-What's in the repo: the complete TV app with 128 host-run tests, the phone web page, the AWS CDK stack and Lambda relay with tests, the voice-clip generator, the brand assets, a 14-entry friction log, and the scripts that recorded the demo video on the Vega Virtual Device.
+What's in the repo: the complete TV app with 128 host-run tests, the phone web page, the AWS CDK stack and Lambda relay with tests, the voice-clip generator, the brand assets, and a 14-entry friction log.
 
 Why it matters: it's a reusable, documented pattern for "phone as camera, TV as screen" apps (fitness, games, accessibility), plus pieces other Vega developers can lift directly: a WebSocket reader that survives split messages on Vega, remote-first focus components, angle-based rep detectors, a serverless pairing relay, and a validator that stops an AI rewrite from inventing numbers.
 

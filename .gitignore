@@ -27,3 +27,8 @@ infra/site/voiceNames.mjs
 infra/site/setCoach.mjs
 infra/site/coach.mjs
 reward-art/out/
+
+
+# demo video: media, tooling and output stay local (not part of the app)
+video/*
+!video/character-reference.png

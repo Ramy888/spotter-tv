@@ -10,7 +10,7 @@ The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-r
 
 - Draft 1205489: overview and project details saved (story, 14 tags, gallery, thumbnail, video https://youtu.be/9C-6zbNSxhQ). Additional info is filled but **unsaved**: fill country, the three declarations and the two learning questions first, then Save; saving with any required field empty wipes the step. Every answer is in `docs/devpost-additional-info.md`.
 - The YouTube video is **Unlisted**; the rules ask for **Public**.
-- Relay fix for the AI depth line (`infra/lambda/setCoach.mjs`) is in the working tree (uncommitted), **not deployed**: `cd infra && npm run deploy`. Then re-record (`video/capture/record-tv.mjs`, `mix-coach.mjs`) and rebuild (`video/edit/build.mjs`) so rest 1 shows the AI card; the narration stays in sync.
+- Relay fix for the AI depth line (`infra/lambda/setCoach.mjs`) is in the working tree (uncommitted), **not deployed**: `cd infra && npm run deploy`. Then re-record and rebuild the film with the local video tooling (kept out of the repo) so rest 1 shows the AI card; the narration stays in sync.
 
 ## Before submitting to Devpost (from the Devpost FAQ, 2026-10-07)
 
