@@ -43,20 +43,22 @@ export function parseSetCoachRequest(msg) {
 }
 
 export function buildLineMessages(req) {
-  // No set numbers: the model wove them in awkwardly ("Next set, 2, ...").
-  const { exercise, focus, line, facts } = req;
+  // No set numbers: the model wove them in awkwardly ("Next set, 2, ..."). No raw facts either: given
+  // reps 14 and shallow 2 it wrote "12 good reps", a sum that's wrong (shallow reps never count) and
+  // gets rejected. The line already holds every number the rewrite may use.
+  const { exercise, focus, line } = req;
   return [
     {
       role: "system",
       content:
         "You are Spotter, a warm, upbeat fitness coach on a TV screen, talking to someone (\"you\") who is resting between sets of a bodyweight workout. " +
         "Rewrite the coach's line you are given as one short spoken sentence or two, in your own encouraging voice, about the set just done and what to focus on in the next one. " +
-        "Rules: keep every number in the line and its advice; never add numbers, facts, equipment, weights, names or medical advice; write every number as digits; " +
+        "Rules: keep every number in the line and its advice; never add numbers, facts, equipment, weights, names or medical advice; never calculate new numbers (no totals, differences or percentages); use each number only as often as the line does; write every number as digits; " +
         `at most ${LIMITS.words} words. Reply only with JSON: {"line": "..."}.\n\n` +
         "Example input line: \"2 reps didn't reach full depth. Next set: every rep all the way down.\"\n" +
         "Example reply: {\"line\": \"2 reps stopped short of full depth, so next set take every single rep all the way down.\"}",
     },
-    { role: "user", content: JSON.stringify({ exercise, focus, line, facts }) },
+    { role: "user", content: JSON.stringify({ exercise, focus, line }) },
   ];
 }
 
@@ -76,6 +78,11 @@ export function lineRejectionReason(reply, req) {
   const kept = new Set(numbersIn(line));
   const dropped = numbersIn(req.line).find((n) => !kept.has(n));
   if (dropped !== undefined) return `dropped number ${dropped}`;
+  // "2 reps stopped short, next set 2 go all the way down" reads as "only 2 reps": a number may
+  // appear only as often as in the line (once, if it comes from the facts).
+  const count = (xs, n) => xs.filter((x) => x === n).length;
+  const repeated = numbersIn(line).find((n, _, all) => count(all, n) > Math.max(1, count(numbersIn(req.line), n)));
+  if (repeated !== undefined) return `repeated number ${repeated}`;
   return null;
 }
 

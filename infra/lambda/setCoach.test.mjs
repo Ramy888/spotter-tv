@@ -57,6 +57,24 @@ test("the model never sees the player's name", () => {
   assert.doesNotMatch(text, /nextSet|"sets"/); // set numbers read awkwardly when the model weaves them in
 });
 
+test("buildLineMessages gives the model only the line's numbers, never the raw facts to do sums with", () => {
+  // With reps 14 and shallow 2 the model wrote "12 good reps" (rejected as invented, and wrong: shallow reps never count).
+  const text = JSON.stringify(buildLineMessages(req));
+  assert.doesNotMatch(text, /shallow|rushed|leftFrame|depthFirst|"target"/);
+  assert.match(text, /never calculate/i);
+});
+
+test("lineRejectionReason refuses a number used more often than in the line", () => {
+  const shallow = parseSetCoachRequest({
+    ...request,
+    line: "2 reps didn't reach full depth. Next set: every rep all the way down.",
+    facts: { reps: 14, target: 14, shallow: 2, rushed: 0, leftFrame: 0, depthFirst: null, depthLast: null },
+  });
+  // A live reply: the second "2" reads as "only 2 reps next set".
+  assert.equal(lineRejectionReason({ line: "2 reps stopped short, next set 2 go all the way down." }, shallow), "repeated number 2");
+  assert.equal(lineRejectionReason({ line: "2 reps stopped short; next set, take every rep all the way down." }, shallow), null);
+});
+
 test("lineRejectionReason accepts a faithful rewrite", () => {
   assert.equal(
     lineRejectionReason({ line: "You slipped from 88° to 99° by the end; next set, hold that depth to the very last rep." }, req),
