@@ -8,9 +8,10 @@ The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-r
 
 ## Devpost submission: in progress (2026-10-09)
 
-- Draft 1205489: overview and project details saved (story, 14 tags, gallery, thumbnail, video https://youtu.be/9C-6zbNSxhQ). Additional info is filled but **unsaved**: fill country, the three declarations and the two learning questions first, then Save; saving with any required field empty wipes the step. Every answer is in `docs/devpost-additional-info.md`.
-- The YouTube video is **Unlisted**; the rules ask for **Public**.
-- Relay fix for the AI depth line (`infra/lambda/setCoach.mjs`) is in the working tree (uncommitted), **not deployed**: `cd infra && npm run deploy`. Then re-record and rebuild the film with the local video tooling (kept out of the repo) so rest 1 shows the AI card; the narration stays in sync.
+- Draft 1205489: all four steps saved (4/5 done); only the final Submit is left (tick the terms, then Submit project). Answers are also in `docs/devpost-additional-info.md`. Video https://youtu.be/9C-6zbNSxhQ.
+- YouTube video is Public (2026-10-09).
+- **Repo goes public on 2026-10-19 or 10-20** (3-4 days before the Oct 23 deadline), which the Open Source mini challenge needs (answered Yes). Until then it's private, shared with knmeiss, giolaq, anishamalde, mosesroth, emersonsklar and devposttesting (testing@devpost.com), all with write access, which personal repos can't avoid. Invites expire after 7 days; once the repo is public they no longer matter. Once public, optionally add the GitHub link back to "Try it out" on Devpost.
+- Relay fix for the AI depth line (`infra/lambda/setCoach.mjs`) is committed (2c7088e) but **not deployed**: `cd infra && npm run deploy`. Then re-record and rebuild the film with the local video tooling (kept out of the repo) so rest 1 shows the AI card; the narration stays in sync.
 
 ## Before submitting to Devpost (from the Devpost FAQ, 2026-10-07)
 

@@ -11,6 +11,7 @@ Amazon's Vega guide says: **don't mention "Vega" in any listing field.**
 | File | `tv-app/build/armv7-release/spotter-tv_armv7.vpkg` only. The three Vega Fire TVs (Fire TV Stick 4K Select, Stick HD 2nd gen, Stick 4K) all take armv7; an aarch64 package targets no devices and blocks submission. Each uploaded file needs a unique build number. |
 | Rebuild | `cd tv-app && source ~/vega/env && npm run build:release` |
 | Package id | `com.spotter.tv` |
+| Store page | https://www.amazon.com/dp/B0HLY8788C (ASIN B0HLY8788C) |
 | Version / build | 1.1.0 / 3, live 2026-10-08 (1.0.0 / 1 went live 2026-10-07). `manifest.toml`; raise `build-number` for every new upload |
 
 Draft created 2026-10-04: app "Spotter", SKU `spotter-tv` (App ID `amzn1.devportal.mobileapp.cc5718846f104947b42f51cca197de4b`).
