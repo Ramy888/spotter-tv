@@ -44,7 +44,7 @@ export function buildMessages(facts) {
 const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
   "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
 const WORD_RE = new RegExp(`\\b(${WORDS.join("|")})\\b`, "gi");
-const numbersIn = (text) => [
+export const numbersIn = (text) => [
   ...(text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number),
   ...(text.match(WORD_RE) ?? []).map((w) => WORDS.indexOf(w.toLowerCase())),
 ];

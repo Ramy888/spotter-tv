@@ -1,7 +1,7 @@
 // Between-set coach (docs/set-coach.md): the AI rewrites the TV's one-line focus for the next set,
 // and Polly voices it. Pure rules only (shared by the relay, which makes the line, and the site,
 // which serves its clip). The TV's rule-based line is the source of truth; the model only phrases it.
-import { BANNED } from "./coach.mjs";
+import { BANNED, numbersIn } from "./coach.mjs";
 
 export const SET_COACH_COOLDOWN_SECONDS = 15; // per TV connection; a set takes longer than this
 export const DAILY_LINE_LIMIT = 500; // all TVs together
@@ -60,8 +60,6 @@ export function buildLineMessages(req) {
   ];
 }
 
-// Numbers in a text, written as digits ("°" and "s" units aside).
-const numbersIn = (text) => (text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
 const words = (text) => text.trim().split(/\s+/).length;
 
 // Why the model's line can't be used, or null if it's fine. Every reason means the TV keeps its

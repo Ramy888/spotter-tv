@@ -64,6 +64,16 @@ test("lineRejectionReason accepts a faithful rewrite", () => {
   );
 });
 
+test("lineRejectionReason counts a number written as a word ('Two reps' keeps the 2)", () => {
+  const shallow = parseSetCoachRequest({
+    ...request,
+    line: "2 reps didn't reach full depth. Next set: every rep all the way down.",
+    facts: { reps: 14, target: 14, shallow: 2, rushed: 0, leftFrame: 0, depthFirst: null, depthLast: null },
+  });
+  assert.equal(lineRejectionReason({ line: "Two reps stopped short, so take every rep all the way down next set." }, shallow), null);
+  assert.equal(lineRejectionReason({ line: "Three reps stopped short; go all the way down." }, shallow), "invented number 3");
+});
+
 test("lineRejectionReason refuses invented or dropped numbers, banned topics and long lines", () => {
   assert.equal(lineRejectionReason({ line: "From 88° to 99°: do 15 more reps next set." }, req), "invented number 15");
   assert.equal(lineRejectionReason({ line: "Your depth faded to 99°; hold it next set." }, req), "dropped number 88");
