@@ -115,6 +115,7 @@ npx cdk deploy
 
 # 2. AI coach (optional; without it the TV keeps its rule-based summary)
 cd ../coach-worker
+export CLOUDFLARE_ACCOUNT_ID=<your account id>   # or put it in coach-worker/.env
 npx wrangler secret put COACH_SECRET   # the same secret
 npx wrangler deploy
 

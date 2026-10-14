@@ -32,3 +32,6 @@ reward-art/out/
 # demo video: media, tooling and output stay local (not part of the app)
 video/*
 !video/character-reference.png
+
+# local env (Cloudflare account id for wrangler)
+.env
