@@ -37,16 +37,21 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 ## 4. The docs don't describe the Vega Virtual Device's networking
 - **Date:** 2026-09-29
 - **Task:** Confirm that an app running in the Virtual Device can reach a WebSocket relay on the host Mac or the LAN.
+- **Steps:** Searched the Vega Virtual Device docs for networking, then pointed the app's relay URL at the Mac's LAN IP, and then at `10.0.2.2`.
 - **Expected:** The docs state how the Virtual Device reaches the host (a host alias, NAT, or LAN).
 - **Actual:** Nothing is documented. Testing showed that both the Mac's LAN IP and `10.0.2.2` (QEMU's standard host alias) work.
 - **Severity:** Low.
+- **Workaround:** Found by trial: `10.0.2.2` or the Mac's LAN IP.
 - **Suggestion:** Add a "Networking" section to the Virtual Device docs.
 
 ## 5. Alexa+ track: the MCP Toolkit isn't available to most hackathon entrants
 - **Date:** 2026-09-29
 - **Task:** Evaluate the Alexa+ track from Egypt.
+- **Steps:** Read developer.amazon.com/alexaplus and the MCP Toolkit availability notes.
+- **Expected:** A path that any registered hackathon entrant can use to build and test for Alexa+.
 - **Actual:** developer.amazon.com/alexaplus says Alexa+ for Builders is "currently available to select partners", and the MCP Toolkit is available only in the United States.
 - **Severity:** Medium. It shaped our choice of track.
+- **Workaround:** Entered the Fire TV track instead.
 - **Suggestion:** Give hackathon entrants a sandbox or web-simulator path that doesn't require partner onboarding.
 
 ## 6. `aws login` succeeds, but the CLI then reports "Unable to locate credentials"
@@ -62,6 +67,8 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 ## 7. Bedrock returns "Operation not allowed" until the Anthropic use-case form is submitted
 - **Date:** 2026-09-30
 - **Task:** Make a first Bedrock `converse` call to Claude from a new account.
+- **Steps:** Called `aws bedrock-runtime converse` in eu-central-1, then ran `aws bedrock get-use-case-for-model-access` to find the cause, then `aws bedrock put-use-case-for-model-access`.
+- **Expected:** The call works, or the error says what is missing and how to fix it.
 - **Actual:** `ValidationException: Operation not allowed`. Only `aws bedrock get-use-case-for-model-access` reveals the cause: "You have not filled out the request form."
 - **Follow-up:** Submitting the form with `aws bedrock put-use-case-for-model-access` then failed with "Your account is not authorized to perform this action. Please create a support case." Every model, including Amazon Nova Lite, returns "Operation not allowed" in both eu-central-1 and us-east-1. The account is from 2016, and Lambda, API Gateway and DynamoDB work normally. A support case is needed.
 - **Update 2026-10-04:** Support case 179076143400741 (opened 2026-09-30, followed up 2026-10-01) has had no reply in 4 days, and Bedrock still returns "Operation not allowed". Asked in the hackathon Discord; the advice was to contact AWS Support on Reddit, which escalated the case. The same account also can't create CloudFront distributions (entry 12).
@@ -93,8 +100,10 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 - **Date:** 2026-10-01
 - **Task:** Press D-pad keys on the Vega Virtual Device from a script, to test TV focus navigation.
 - **Steps:** `vega device run-cmd -c 'inputd-cli button_press dpad_right'`
+- **Expected:** A D-pad key name such as `dpad_right` is accepted, or the help text lists the valid names.
 - **Actual:** `invalid button value: ["dpad_right"]`. The help text doesn't list valid names. Linux key codes work: `KEY_RIGHT`, `KEY_ENTER`.
 - **Severity:** Low.
+- **Workaround:** Used Linux key codes (`KEY_RIGHT`, `KEY_ENTER`, found by trial) to drive focus on the Virtual Device.
 - **Suggestion:** List the accepted key names in `inputd-cli --help`, and expose key presses as a `vega device` command.
 
 ## 11. No on-screen keyboard for `TextInput` on the Vega Virtual Device
@@ -130,6 +139,7 @@ Machine: MacBook Pro M4 (10-core CPU, 10-core GPU), 16 GB RAM, macOS 26.6.2. Veg
 ## 14. `TextInput` clips the bottom of its text when sized by padding
 - **Date:** 2026-10-01
 - **Task:** A large name field on the TV (React Native `TextInput`, 44 pt condensed font, 18 pt vertical padding).
+- **Steps:** Styled the `TextInput` with the 44 pt font and 18 pt vertical padding, ran it on the Vega Virtual Device, and typed "Ramy".
 - **Expected:** The text fits inside the field, as it does on iOS and Android.
 - **Actual:** On the Vega Virtual Device the bottom of the text was cut off: the tail of the "y" in "Ramy" was missing.
 - **Severity:** Low.

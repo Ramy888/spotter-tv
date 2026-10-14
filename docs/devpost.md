@@ -62,7 +62,7 @@ Video never leaves the phone. Names and progress stay on the TV. No account, no 
 
 ### What's next
 
-Spotter is already live on the Amazon Appstore. Next: Bedrock for the AI coach once our account is enabled (one setting away), more exercises (push-ups, planks with a timer), and testing on a real Vega Fire TV.
+Spotter is already live on the Amazon Appstore. Next: **Train Together**, where two households start a workout at the same moment from a shared code, see each other's progress on screen, send preset cheers from the phone, and hear the coach say how their partner is doing. Still no account, no chat and no video. Also: Bedrock for the AI coach once our account is enabled (one setting away), more exercises (push-ups, planks with a timer), and testing on a real Vega Fire TV.
 
 ## Built With
 

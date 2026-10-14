@@ -1,5 +1,7 @@
 # Spotter: launch film (AI-generated, 2:45)
 
+> **What shipped (2026-10-14):** the published film is 1:52. Its AI shots were generated with Google Flow, not HiggsField, and it has no music. This script is the original plan.
+
 A product film, not a tutorial. **Problem → turn → the product working → who it's for → how it's built on Fire TV → close.**
 
 ## The one rule
