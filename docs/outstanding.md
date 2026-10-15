@@ -8,6 +8,8 @@ The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-r
 
 ## Devpost submission: submitted 2026-10-09 (editable until Oct 23)
 
+- **Open Source mini challenge: resolved 2026-10-15.** On Devpost Discussions (thread 45547), Emerson (Amazon) ruled that the primary-track repo doesn't count. We built a separate library, **pose-reps** (https://github.com/Ramy888/pose-reps): MIT, 19 tests, CI green, browser demo. **Private for now, at the owner's request (2026-10-15). Make it public together with spotter-tv on Oct 19-20; the Open Source entry needs it public by the Oct 23 deadline.** It's the rep-counting engine, extracted from Spotter and generalized. Both Devpost OSS URLs now point to pose-reps, and the description was rewritten. Spotter's own code is unchanged (the judged build stays frozen).
+
 - Submission 1205489 submitted. Answers are also in `docs/devpost-additional-info.md`. Video https://youtu.be/9C-6zbNSxhQ, Appstore https://www.amazon.com/dp/B0HLY8788C.
 - YouTube video is Public (2026-10-09), 1:52 long (under the 3:00 limit). AI shots were made with Google Flow, and there's no music, so no third-party media to clear.
 - **Repo goes public on 2026-10-19 or 10-20** (3-4 days before the Oct 23 deadline), which the Open Source mini challenge needs (answered Yes). Until then it's private, shared with knmeiss, giolaq, anishamalde, mosesroth, emersonsklar and devposttesting (testing@devpost.com), all with write access, which personal repos can't avoid. Invites expire after 7 days; once the repo is public they no longer matter. Once public, optionally add the GitHub link back to "Try it out" on Devpost.
@@ -28,5 +30,7 @@ The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-r
 - **Video footage:** the AI clips are our own generations and every app screen is a real capture, so no third-party media rights to clear.
 
 ## Waiting: AWS Support case 179076143400741 (Bedrock and CloudFront blocked)
+
+**2026-10-15:** AWS denied CloudFront (an account ramp-up limit; they suggest waiting for the next billing cycle). CloudFront isn't needed (the site runs on a Lambda URL). The reply didn't address Bedrock, which is still blocked (Nova Lite Converse returns "Operation not allowed" in eu-central-1 and us-east-1). I reopened the case the same day to ask about Bedrock specifically. Plan to submit on Cloudflare Workers AI unless AWS enables it before Oct 23.
 
 Opened 2026-09-30, followed up 2026-10-01, escalated through AWS Support on Reddit 2026-10-04. Reddit's answer: no updates over social media; the team will reply on the case thread with questions and next steps. Follow up on the case itself if there's no reply. When Bedrock is enabled: switch `COACH_PROVIDER` to `bedrock` in `infra/stack.ts`, deploy, and run `infra/e2e-coach.mjs`.
