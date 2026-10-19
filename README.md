@@ -162,6 +162,7 @@ node e2e-voice-name.mjs <RelayUrl> <PhoneUrl>
 node e2e-name-prompt.mjs <RelayUrl>
 node e2e-status.mjs <RelayUrl>             # set and rest progress to the phone
 node e2e-set-coach.mjs <RelayUrl> <PhoneUrl>  # between-set coach line, its clip and limits
+node e2e-session-done.mjs <RelayUrl>       # the phone hears when a workout ends
 ```
 
 > The Vega build fails if the project path contains spaces (see `docs/friction-log.md`).
