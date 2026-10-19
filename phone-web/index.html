@@ -96,7 +96,7 @@
       <input id="code" maxlength="6" inputmode="text" autocapitalize="characters" required>
     </div>
     <button class="primary" type="submit">Start camera</button>
-    <button id="scan" class="secondary" type="button">Scan QR code</button>
+    <button id="scan" class="secondary" type="button" hidden>Scan QR code</button>
     <p class="note">You'll be asked once for camera access</p>
   </form>
 </section>
@@ -541,7 +541,7 @@ function leave(search = "") {
   $("cam").srcObject?.getTracks().forEach((t) => t.stop());
   location.href = location.pathname + search;
 }
-$("leave").onclick = () => leave();
+$("leave").onclick = () => leave("?left=1");
 
 // The TV ended the workout: let the coach finish its last line (at most 4 s), then stop the
 // camera and go back to the start screen, one tap away from the next workout on the same TV.
@@ -620,6 +620,7 @@ $("scan").onclick = async () => {
     if (found) {
       // Stop this camera first: some phones can't open the workout camera while it's still on.
       closeScanner();
+      $("scan").hidden = true;
       showFound(found, `Found your TV · ${found}`);
       history.replaceState(null, "", `?code=${found}`);
       return;
@@ -632,6 +633,9 @@ $("scan").onclick = async () => {
 $("scanCancel").onclick = closeScanner;
 
 const params = new URLSearchParams(location.search);
+// Scanning is offered only after leaving a workout (Leave, or the TV ending it): a phone that
+// just scanned the TV's QR code doesn't need a second scan button.
+$("scan").hidden = !(params.has("done") || params.has("left"));
 const fromLink = params.get("code")?.toUpperCase();
 if (fromLink && CODE_RE.test(fromLink)) {
   showFound(fromLink, params.has("done") ? `Workout done · TV ${fromLink}` : `Found your TV · ${fromLink}`);
