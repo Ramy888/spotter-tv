@@ -118,7 +118,7 @@ flowchart LR
 | `docs/friction-log.md` | Friction we hit with Vega and AWS, for the hackathon feedback |
 | `spikes/` | Early experiments (local dev relay) |
 
-The rep counter is also published on its own as [pose-reps](https://github.com/Ramy888/pose-reps) (MIT), our Open Source mini challenge entry.
+The rep counter is also published on its own as [pose-reps](https://github.com/Ramy888/pose-reps) (MIT, [on npm](https://www.npmjs.com/package/pose-reps)), our Open Source mini challenge entry.
 
 ## Run it
 
