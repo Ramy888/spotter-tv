@@ -152,6 +152,8 @@ import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@m
 
 const SEND_FPS = 15;           // enough for rep counting; keeps relay traffic and cost down
 const PING_EVERY_MS = 1000;    // only some frames carry a timestamp for round-trip measurement
+const AWAY_EVERY_MS = 500;     // nobody in view: an empty frame this often, well inside the TV's 3 s silence limit
+const AWAY_POSE = Array.from({ length: 33 }, () => [0, 0, 0]); // every joint invisible
 const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
 
 const $ = (id) => document.getElementById(id);
@@ -506,6 +508,11 @@ function loop() {
       ws.send(JSON.stringify(msg));
       lastSent = now;
     }
+  } else if (ws?.readyState === WebSocket.OPEN && now - lastSent >= AWAY_EVERY_MS) {
+    // Nobody in view. Silence would make the TV treat the phone as gone (back to the QR screen,
+    // and a set in progress lost); an empty frame keeps it paired and shows "Step back" in a set.
+    ws.send(JSON.stringify({ t: Math.round(now), kp: AWAY_POSE }));
+    lastSent = now;
   }
 
   frames++;

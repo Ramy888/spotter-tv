@@ -40,10 +40,12 @@ const endToEnd = [];
 const rtt = [];
 let received = 0;
 let malformedLeaked = false;
+let awayReceived = false;
 tv.on("message", (d) => {
   const msg = JSON.parse(d);
   if (msg.kp?.length !== 33) return;
   if (msg.kp[0][0] === -1) malformedLeaked = true;
+  if (msg.kp.every((p) => p[0] === 0 && p[1] === 0 && p[2] === 0)) { awayReceived = true; return; }
   received++;
   endToEnd.push(performance.now() - msg.kp[0][1] * 1e6);
 });
@@ -73,6 +75,11 @@ check("malformed frame is dropped", !malformedLeaked);
 check("phone -> TV latency p50 < 250 ms", pct(endToEnd, 0.5) < 250,
   `p50 ${pct(endToEnd, 0.5).toFixed(0)} ms, p95 ${pct(endToEnd, 0.95).toFixed(0)} ms`);
 check("phone round trip measured", rtt.length > 0, `p50 ${pct(rtt, 0.5)?.toFixed(0)} ms`);
+
+// Nobody in view: the phone sends every joint invisible so the TV knows it is still there.
+phone.send(JSON.stringify({ t: 1, kp: Array.from({ length: 33 }, () => [0, 0, 0]) }));
+await new Promise((r) => setTimeout(r, 1500));
+check("an empty frame (nobody in view) reaches the TV", awayReceived);
 
 const tvLeft = nextMessage(phone).catch(() => null);
 tv.close();
