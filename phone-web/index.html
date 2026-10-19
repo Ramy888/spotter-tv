@@ -37,7 +37,8 @@
   .note { color: var(--muted); font-size: 14px; text-align: center; margin: 0; }
   #stage { position: relative; flex: 1; min-height: 60vh; background: #161925; overflow: hidden; }
   video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .mirror { transform: scaleX(-1); }
+  /* Front camera: mirror the picture and skeleton only, so the status pill on top still reads. */
+  #stage.mirror video, #stage.mirror canvas { transform: scaleX(-1); }
   #guide { position: absolute; left: 50%; top: 54%; height: 72%; transform: translate(-50%, -50%); pointer-events: none; }
   #status { position: absolute; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); white-space: nowrap;
             padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
@@ -65,6 +66,14 @@
   #nameInput:focus { outline: none; border-color: var(--accent); }
   #nameInput.error { border-color: var(--cue); }
   .name-error { margin: -4px 0 0; color: var(--cue); font-weight: 700; font-size: 15px; }
+  /* QR scanner: the back camera full screen, a frame to aim with, and a way out. */
+  #scanner { position: fixed; inset: 0; background: #000; z-index: 20; }
+  #scanFrame { position: absolute; left: 50%; top: 42%; width: min(68vw, 320px); aspect-ratio: 1; transform: translate(-50%, -50%);
+               border: 3px solid var(--accent); border-radius: 24px; box-shadow: 0 0 0 100vmax rgba(10, 11, 16, 0.55); pointer-events: none; }
+  #scanPanel { position: absolute; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto;
+               padding: 20px 24px max(28px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; text-align: center; }
+  #scanHint { margin: 0; font-weight: 700; font-size: 18px; }
+  #scanHint.error { color: var(--cue); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -87,9 +96,19 @@
       <input id="code" maxlength="6" inputmode="text" autocapitalize="characters" required>
     </div>
     <button class="primary" type="submit">Start camera</button>
+    <button id="scan" class="secondary" type="button">Scan QR code</button>
     <p class="note">You'll be asked once for camera access</p>
   </form>
 </section>
+
+<div id="scanner" hidden>
+  <video id="scanCam" playsinline muted></video>
+  <div id="scanFrame"></div>
+  <div id="scanPanel">
+    <p id="scanHint" role="status">Point at the QR code on your TV</p>
+    <button id="scanCancel" class="secondary" type="button">Cancel</button>
+  </div>
+</div>
 
 <section id="session" class="screen" hidden>
   <div id="stage">
@@ -296,6 +315,7 @@ function connect() {
     if (msg.type === "status" && Number.isInteger(msg.reps)) showStatus(msg);
     if (msg.type === "name-prompt") showNameSheet(msg.open === true);
     if (msg.type === "tv-left") { connected = false; setStatus("Your TV closed the session", "bad"); }
+    if (msg.type === "session-done") sessionDone();
   };
   ws.onclose = () => {
     if (leaving) return;
@@ -514,20 +534,107 @@ $("flip").onclick = async () => {
   facing = facing === "user" ? "environment" : "user";
   if (landmarker) await openCamera();
 };
-$("leave").onclick = () => {
+
+function leave(search = "") {
   leaving = true;
   ws?.close();
   $("cam").srcObject?.getTracks().forEach((t) => t.stop());
-  location.href = location.pathname;
-};
+  location.href = location.pathname + search;
+}
+$("leave").onclick = () => leave();
 
-const fromLink = new URLSearchParams(location.search).get("code")?.toUpperCase();
-if (fromLink && CODE_RE.test(fromLink)) {
-  // Arrived from the TV's QR code: no typing, just one tap (camera and audio both need a tap on iOS).
-  $("code").value = fromLink;
+// The TV ended the workout: let the coach finish its last line (at most 4 s), then stop the
+// camera and go back to the start screen, one tap away from the next workout on the same TV.
+function sessionDone() {
+  if (leaving) return;
+  const since = performance.now();
+  const wait = () => (speaking && performance.now() - since < 4000 ? setTimeout(wait, 200) : leave(`?code=${code}&done=1`));
+  wait();
+}
+
+// Skips typing: the code is filled in, so one tap starts (camera and audio both need a tap on iOS).
+function showFound(found, text) {
+  $("code").value = found;
   $("codeEntry").hidden = true;
   $("found").hidden = false;
-  $("foundText").textContent = `Found your TV · ${fromLink}`;
+  $("foundText").textContent = text;
+}
+
+// QR scanning, for a phone that opened this page without the TV's QR code. The QR holds this
+// page's URL with ?code=; only a valid code is taken from it, and a scanned link is never opened.
+function codeFromQr(text) {
+  let value = String(text ?? "").trim();
+  try { value = new URL(value).searchParams.get("code") ?? ""; } catch { /* not a URL: maybe the bare code */ }
+  value = value.toUpperCase();
+  return CODE_RE.test(value) ? value : null;
+}
+
+// Chrome on Android has a built-in QR reader; Safari doesn't, so it loads a small decoder.
+async function qrDecoder() {
+  if ("BarcodeDetector" in window && (await BarcodeDetector.getSupportedFormats()).includes("qr_code")) {
+    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+    return async (video) => (await detector.detect(video)).map((c) => c.rawValue);
+  }
+  const { default: jsQR } = await import("https://cdn.jsdelivr.net/npm/jsqr@1.4.0/+esm");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  return async (video) => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    const found = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+    return found ? [found.data] : [];
+  };
+}
+
+let scanStream = null;
+function scanHint(text, error = false) {
+  $("scanHint").textContent = text;
+  $("scanHint").classList.toggle("error", error);
+}
+function closeScanner() {
+  scanStream?.getTracks().forEach((t) => t.stop());
+  scanStream = null;
+  $("scanCam").srcObject = null;
+  $("scanner").hidden = true;
+}
+$("scan").onclick = async () => {
+  scanHint("Point at the QR code on your TV");
+  $("scanner").hidden = false;
+  let decode;
+  try {
+    decode = await qrDecoder();
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    if ($("scanner").hidden) { stream.getTracks().forEach((t) => t.stop()); return; } // cancelled while asking
+    scanStream = stream;
+    $("scanCam").srcObject = stream;
+    await $("scanCam").play();
+  } catch (err) {
+    scanHint(err?.name === "NotAllowedError" ? "Camera access is off. Type the code instead." : "Can't scan here. Type the code instead.", true);
+    return;
+  }
+  const tick = async () => {
+    if (!scanStream) return;
+    const texts = await decode($("scanCam")).catch(() => []);
+    const found = texts.map(codeFromQr).find(Boolean);
+    if (found) {
+      // Stop this camera first: some phones can't open the workout camera while it's still on.
+      closeScanner();
+      showFound(found, `Found your TV · ${found}`);
+      history.replaceState(null, "", `?code=${found}`);
+      return;
+    }
+    if (texts.length) scanHint("That QR code isn't from Spotter", true);
+    setTimeout(tick, 250);
+  };
+  tick();
+};
+$("scanCancel").onclick = closeScanner;
+
+const params = new URLSearchParams(location.search);
+const fromLink = params.get("code")?.toUpperCase();
+if (fromLink && CODE_RE.test(fromLink)) {
+  showFound(fromLink, params.has("done") ? `Workout done · TV ${fromLink}` : `Found your TV · ${fromLink}`);
 }
 </script>
 </body>

@@ -294,8 +294,9 @@ async function ensureNameClip(template, name) {
   return "made";
 }
 
-// Messages from the TV for its paired phone: voice clips to play (when the phone is the speaker)
-// and the live rep count. Only a TV connection can send them, and only to its own phone.
+// Messages from the TV for its paired phone: voice clips to play (when the phone is the speaker),
+// the live rep count, and the end of a workout. Only a TV connection can send them, and only to
+// its own phone.
 async function toPhone(event, payload) {
   const conn = (await db.send(new GetCommand({ TableName: TABLE, Key: { pk: `CONN#${event.requestContext.connectionId}` } }))).Item;
   if (conn?.role !== "tv" || !conn.code) return ok;
@@ -324,7 +325,12 @@ async function tvConnectionFor(phoneConnId) {
 async function onMessage(event) {
   const msg = parseMessage(event.body);
   if (msg?.type === "host") return hostSession(event);
-  if (msg?.type === "coach") return coachSession(event, msg.msg);
+  if (msg?.type === "coach") {
+    // The TV asks for coaching when a workout ends, so tell the phone first: it stops its camera
+    // and goes back to its start screen. A failed notice must not cost the TV its coach reply.
+    await toPhone(event, { type: "session-done" }).catch((err) => console.warn("session-done not sent", err));
+    return coachSession(event, msg.msg);
+  }
   if (msg?.type === "voice-name") return voiceName(event, msg.name);
   if (msg?.type === "set-coach") return setCoach(event, msg.msg);
   if (msg?.type === "name-prompt") return toPhone(event, { type: "name-prompt", open: msg.open });
