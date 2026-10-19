@@ -71,7 +71,7 @@ Spotter is already live on the Amazon Appstore. Next: **Train Together**, where 
 ## Links
 
 - **Try it out (Amazon Appstore):** https://www.amazon.com/dp/B0HLY8788C
-- **Code:** https://github.com/Ramy888/spotter-tv (make it public before submitting)
+- **Code:** https://github.com/Ramy888/spotter-tv (public since 2026-10-19)
 - **Demo video:** https://youtu.be/9C-6zbNSxhQ
 - **Product feedback:** `docs/product-feedback.md` in the repo; paste it into Devpost's feedback field
 - **Friction log:** `docs/friction-log.md`

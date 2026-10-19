@@ -6,9 +6,25 @@
 
 Spotter is AI form coaching for Fire TV. Lean your phone against something across the room, scan the code on the TV, and work out: the TV counts every rep, says when one doesn't count ("Go deeper"), cheers you on by name, and sums up the set with a coach's advice for next time. No account, no app to install on the phone, and no video ever leaves it.
 
-Built for the Amazon "Build, Ship, Shape" Developer Hackathon: **Fire TV track (Vega OS)** + **AWS Builder**.
+Built for the Amazon "Build, Ship, Shape" Developer Hackathon: **Fire TV track (Vega OS)** + **AWS Builder** + **Open Source** ([pose-reps](https://github.com/Ramy888/pose-reps), Spotter's rep counter as a standalone MIT library).
 
 **[Live on the Amazon Appstore](https://www.amazon.com/dp/B0HLY8788C)** for Vega Fire TVs (version 1.1.0, published 2026-10-08; 1.0.0 went live 2026-10-07).
+
+## Try it (for judges)
+
+Everything runs against the live AWS stack, so there's nothing to deploy.
+
+- **On a Vega Fire TV:** install [Spotter from the Amazon Appstore](https://www.amazon.com/dp/B0HLY8788C), open it, and scan the QR code on the TV with any phone.
+- **On the Vega Virtual Device** (the emulator has no Appstore): with the [Vega SDK](https://developer.amazon.com/docs/vega/latest/install-vega-sdk.html) installed, download the `.vpkg` from the [v1.1.0 release](https://github.com/Ramy888/spotter-tv/releases/tag/v1.1.0), the 1.1.0 release build (`aarch64` for Apple silicon, `x86_64` for Intel or Linux), then:
+
+  ```bash
+  vega virtual-device start
+  vega device install-app -p spotter-tv_aarch64.vpkg
+  vega device launch-app -a com.spotter.tv.main
+  ```
+
+- **Then, on the phone:** scan the TV's QR code (or open the [phone page](https://yannegqpb2hvrix2nmxxbbygqm0ldexn.lambda-url.eu-central-1.on.aws/) and type the code on the TV), allow the camera, lean the phone upright about 3 m away, and pick **Squats** with the remote.
+- **Building it yourself** uses the live stack too: `tv-app/src/config.ts` already points at it, so skip steps 1 and 2 of [Run it](#run-it).
 
 ## What it does
 
@@ -102,6 +118,8 @@ flowchart LR
 | `docs/friction-log.md` | Friction we hit with Vega and AWS, for the hackathon feedback |
 | `spikes/` | Early experiments (local dev relay) |
 
+The rep counter is also published on its own as [pose-reps](https://github.com/Ramy888/pose-reps) (MIT), our Open Source mini challenge entry.
+
 ## Run it
 
 Requirements: Node 22, the [Vega SDK](https://developer.amazon.com/docs/vega/latest/install-vega-sdk.html), an AWS account (for the relay), and a phone.
@@ -119,7 +137,8 @@ export CLOUDFLARE_ACCOUNT_ID=<your account id>   # or put it in coach-worker/.en
 npx wrangler secret put COACH_SECRET   # the same secret
 npx wrangler deploy
 
-# 3. TV app: put RelayUrl and PhoneUrl in tv-app/src/config.ts
+# 3. TV app (tv-app/src/config.ts points at the live stack; put your own RelayUrl and PhoneUrl
+#    there only if you deployed steps 1 and 2)
 cd ../tv-app
 source ~/vega/env
 npm install

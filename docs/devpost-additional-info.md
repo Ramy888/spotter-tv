@@ -11,12 +11,12 @@ Copy source for the Additional info step of the Devpost form. The form drops eve
 | Submitter Country of Residence | (you choose) |
 | Canada province | N/A unless you live in Canada |
 | Primary Track | Fire TV |
-| Code repository URL | https://github.com/Ramy888/spotter-tv (make it public first, or share with testing@devpost.com and @AmazonAppDev) |
+| Code repository URL | https://github.com/Ramy888/spotter-tv (public since 2026-10-19) |
 | New or existing | New (first commit 2026-09-30) |
 | AWS Builder Mini Challenge | Yes |
 | Open Source Mini Challenge | Yes |
-| OSS Contribution URL | https://github.com/Ramy888/spotter-tv |
-| OSS Project Repository URL | https://github.com/Ramy888/spotter-tv |
+| OSS Contribution URL | https://github.com/Ramy888/pose-reps |
+| OSS Project Repository URL | https://github.com/Ramy888/pose-reps |
 | OSS GitHub Username | Ramy888 |
 | Friction Log (link) | https://github.com/Ramy888/spotter-tv/blob/main/docs/friction-log.md |
 | Declarations (3 checkboxes), learning level, AI value | (you choose) |
@@ -37,13 +37,13 @@ Documented in the README (architecture diagram) and docs/product-feedback.md (wh
 
 ## Open Source: what you did, how it works, why it matters
 
-Spotter is a new open-source project (MIT license), created during the hackathon (first commit 2026-09-30): https://github.com/Ramy888/spotter-tv
+Synced from the live Devpost form on 2026-10-19. The primary-track repo doesn't count (Emerson Sklar, Discussions thread 45547), so the entry is a separate library.
 
-What it is: a Fire TV fitness coach. A phone in any browser tracks your body on-device (MediaPipe) and sends only body points through an AWS WebSocket relay to a Vega OS app (React Native for Vega), which counts full-depth reps, cues your form out loud by name, coaches you between sets, and sums up the workout. It's live on the Amazon Appstore.
+What we did: built pose-reps (https://github.com/Ramy888/pose-reps), a new MIT-licensed TypeScript library that counts exercise reps and gives form cues from MediaPipe pose keypoints. We extracted the rep-counting engine from our Fire TV app Spotter and generalized it into a standalone, dependency-free package anyone can use: a MediaPipe Tasks adapter (fromLandmarks), an exercise registry (squats, lunges, jumping jacks), a configurable detector for custom exercises (any joint angle, with configurable required joints, so upper-body moves like curls work with the legs out of frame), 19 tests on Node's built-in runner, a runnable Node example, a webcam browser demo with a skeleton overlay and live visibility and angle diagnostics, and CI on GitHub Actions.
 
-What's in the repo: the complete TV app with 128 host-run tests, the phone web page, the AWS CDK stack and Lambda relay with tests, the voice-clip generator, the brand assets, and a 14-entry friction log.
+How it works: each frame, the detector smooths the tracked joint angle (exponential moving average) and moves through three phases: up, dipping, down. A rep counts only when the angle goes past the depth target and comes back up. A half rep fires a "Go deeper" cue instead, a rushed rep counts but cues "Slow down", a minimum rep time ignores jitter and bounces, and if the needed joints drop below 60% visibility it resets and cues "Step back" once. Each counted rep reports its duration and deepest angle, for summaries and progress tracking.
 
-Why it matters: it's a reusable, documented pattern for "phone as camera, TV as screen" apps (fitness, games, accessibility), plus pieces other Vega developers can lift directly: a WebSocket reader that survives split messages on Vega, remote-first focus components, angle-based rep detectors, a serverless pairing relay, and a validator that stops an AI rewrite from inventing numbers.
+Why it matters: almost every MediaPipe fitness project re-writes a fragile rep counter. pose-reps gives any web, Node or React Native app full-depth-only counting and form cues in a few lines, with thresholds tuned on real squats and tests that pin the behavior down. It also works on streamed keypoints, not just a local camera: Spotter uses the same logic to count reps on a TV from a phone across the room.
 
 ## Feature Requests
 
