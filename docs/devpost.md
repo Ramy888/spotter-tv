@@ -15,7 +15,7 @@ Your phone is the camera. Your Fire TV is the coach.
 ## Track and mini challenge
 
 - **Track:** Fire TV, built on **Vega OS** (React Native for Vega), running on the Vega Virtual Device.
-- **Mini challenge:** AWS Builder (API Gateway WebSocket, Lambda, DynamoDB, Amazon Polly, CDK).
+- **Mini challenges:** AWS Builder (API Gateway WebSocket, Lambda, DynamoDB, Amazon Polly, CDK) and Open Source ([pose-reps](https://github.com/Ramy888/pose-reps)). A project can win at most one mini challenge prize.
 
 ## Description
 
@@ -59,6 +59,10 @@ On-device pose tracking (MediaPipe) on the phone → the WebSocket relay on AWS 
 ### Privacy
 
 Video never leaves the phone. Names and progress stay on the TV. No account, no ads, no tracking. Privacy policy: https://yannegqpb2hvrix2nmxxbbygqm0ldexn.lambda-url.eu-central-1.on.aws/privacy
+
+### Open Source mini challenge
+
+Spotter's rep counter is also its own open-source library, [pose-reps](https://github.com/Ramy888/pose-reps): MIT, 19 tests, CI, and a [live demo](https://pose-reps.ramy-comm.workers.dev).
 
 ### What's next
 
