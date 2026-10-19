@@ -35,3 +35,6 @@ video/*
 
 # local env (Cloudflare account id for wrangler)
 .env
+
+# open-work notes stay local (AWS case numbers, reviewer names)
+docs/outstanding.md
