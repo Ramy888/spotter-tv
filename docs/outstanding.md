@@ -2,6 +2,10 @@
 
 Open work, newest first. Remove an item when it's done.
 
+## Known issue: a squat counts as a lunge (next TV version)
+
+Found 2026-10-19 while testing. The lunge detector only tracks the more bent knee (below 105° and back above 155°), so a deep squat passes. Nothing checks the lunge stance (one foot forward, knees at clearly different heights). Kept as is for the submission. Fix it in a TV update (a stance check in `tv-app/src/exercises/index.ts`, plus a test that a squat is rejected during lunges) and in pose-reps 0.2.0, which has the same thresholds. A phone-only workaround was considered and dropped: it couldn't check the first rep of a workout, and it edits what the TV sees.
+
 ## Next store update: rest screenshot with the Coach card
 
 The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-rest.png` shows the plain countdown. Retake it on the Vega Virtual Device with the Coach card (do a few half squats in set 1 so the focus is "Full depth"), at 1920×1080 with no transparency, and upload it to both screenshot sections (Fire TV and tablet) with the next version. Don't cancel the 1.1.0 review for it.
