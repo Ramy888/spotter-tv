@@ -8,24 +8,27 @@ The 1.1.0 screenshots predate the between-set coach: `brand/store/screenshot-5-r
 
 ## Devpost submission: submitted 2026-10-09 (editable until Oct 23)
 
-- **Open Source mini challenge: resolved 2026-10-15.** On Devpost Discussions (thread 45547), Emerson (Amazon) ruled that the primary-track repo doesn't count. We built a separate library, **pose-reps** (https://github.com/Ramy888/pose-reps): MIT, 19 tests, CI green, browser demo. **Public since 2026-10-19**, together with spotter-tv. It's the rep-counting engine, extracted from Spotter and generalized. Both Devpost OSS URLs now point to pose-reps, and the description was rewritten. Spotter's own code is unchanged (the judged build stays frozen).
+- **Open Source mini challenge: resolved 2026-10-15.** On Devpost Discussions (thread 45547), Emerson (Amazon) ruled that the primary-track repo doesn't count. We built a separate library, **pose-reps** (https://github.com/Ramy888/pose-reps): MIT, 19 tests, CI green. **Public since 2026-10-19**, together with spotter-tv; **on npm as pose-reps 0.1.0** (published 2026-10-19), and the browser demo is live at https://pose-reps.ramy-comm.workers.dev (Cloudflare Workers static assets, `npm run demo:deploy`). It's the rep-counting engine, extracted from Spotter and generalized. Both Devpost OSS URLs point to pose-reps; the description mentions npm and the demo.
 
 - Submission 1205489 submitted. Answers are also in `docs/devpost-additional-info.md`. Video https://youtu.be/9C-6zbNSxhQ, Appstore https://www.amazon.com/dp/B0HLY8788C.
 - YouTube video is Public (2026-10-09), 1:52 long (under the 3:00 limit). AI shots were made with Google Flow, and there's no music, so no third-party media to clear.
 - **Repo is public since 2026-10-19** (spotter-tv and pose-reps; history checked with gitleaks first, no secrets).
+- **Judge path without a Fire TV (2026-10-19):** README "Try it (for judges)", and the GitHub release v1.1.0 (tagged at the store commit 4e1b4b5) carries the release `.vpkg` builds for the Vega Virtual Device. The Devpost story has an Open Source section and a "No Vega Fire TV?" pointer to it. The Vega Virtual Device has no Appstore, so the store download only works on a real Vega Fire TV.
+- **Phone page and relay fixes, deployed 2026-10-19** (the TV build stays 1.1.0): the status pill no longer reads mirrored on the front camera; when the TV ends a workout the relay sends `session-done` and the phone goes back to its start screen ("Workout done", one tap to rejoin); Scan QR code shows only after leaving a workout; with nobody in view the phone sends empty frames, so the TV keeps the pairing instead of going back to the QR screen. Checks: `infra/e2e-session-done.mjs`, `infra/e2e.mjs`.
+- **Judges' deck:** uploaded to Additional info (`spotter-judges-deck.pdf`). It doesn't mention pose-reps; fine for a Spotter deck.
 - Between-set AI line after half reps: fixed and **deployed 2026-10-09** (live: 7/8 depth lines, 5/6 fade lines pass; a miss keeps the plain line). The demo video predates it: its first rest shows the plain card, the second the AI card.
 
 ## Optional extras (no deadline, do them if there's time)
 
 - **Re-recorded demo take:** the video's first rest shows the plain Coach card because it was recorded before the AI-line fix. A new take would show "✨ AI" there too. The local tooling re-cuts and keeps the narration in sync, but YouTube can't replace a file: a new upload gets a new URL, which must then be updated on Devpost (and set to Public).
-- **Short PDF deck for judges:** built 2026-10-14 (8 slides in the Arena look, ending on What's next with Train Together): https://claude.ai/artifact/6xNm3osH6Piky1yGD215F1. Left to do: export it as a PDF and upload it to Devpost's Additional info "Upload a File" field (judges only).
 - **Newer rest screenshot for the Appstore:** see "Next store update" above.
 
 ## Before submitting to Devpost (from the Devpost FAQ, 2026-10-07)
 
 - **Hardware:** the Vega Virtual Device is enough for submission and judging; a physical Fire TV isn't required.
 - **Keep the AWS stack running through judging (Nov 9-20).** Judges pair a phone through the relay, so don't tear down SpotterRelay before Nov 21. It's pay-per-request (Lambda, API Gateway, DynamoDB), so idle cost is near zero.
-- **AWS credits:** $150 per person; request through the form on the Devpost Resources page if not done yet.
+- **AWS credits:** no longer available (Devpost ran out of codes on 2026-10-07).
+- **Deploying:** the AWS CLI uses `aws login` sessions, which expire; run it before `npm run deploy` in `infra/`.
 - **Video footage:** the AI clips are our own generations and every app screen is a real capture, so no third-party media rights to clear.
 
 ## Waiting: AWS Support case 179076143400741 (Bedrock and CloudFront blocked)

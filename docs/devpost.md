@@ -46,6 +46,8 @@ The whole TV experience is a **Vega OS app written in React Native for Vega**:
 - **Vega W3C Media** (`AudioPlayer`) plays the coach's voice on the TV;
 - the Vega CLI and Virtual Device built, tested and packaged the app (release `.vpkg`), which is **live on the Amazon Appstore** for Vega Fire TVs (version 1.1.0 with the between-set coach, published 2026-10-08; each release passed primary, content policy and functionality validation).
 
+**No Vega Fire TV?** The [README's judge quick start](https://github.com/Ramy888/spotter-tv#try-it-for-judges) runs the same 1.1.0 release build on the Vega Virtual Device, against the live backend.
+
 ### How it uses AWS
 
 - **API Gateway WebSocket + Lambda + DynamoDB**: a serverless relay that pairs the phone and the TV with a 6-character code and carries about 15 pose frames per second, 88 ms median phone-to-TV.
@@ -62,7 +64,7 @@ Video never leaves the phone. Names and progress stay on the TV. No account, no 
 
 ### Open Source mini challenge
 
-Spotter's rep counter is also its own open-source library, [pose-reps](https://github.com/Ramy888/pose-reps): MIT, 19 tests, CI, and a [live demo](https://pose-reps.ramy-comm.workers.dev).
+Spotter's rep counter is also its own open-source library, [pose-reps](https://github.com/Ramy888/pose-reps): MIT, [on npm](https://www.npmjs.com/package/pose-reps), 19 tests, CI, and a [live demo](https://pose-reps.ramy-comm.workers.dev).
 
 ### What's next
 
